@@ -39,7 +39,7 @@ try:
     MIGRATIONS_DIR = BASE_DIR / "migrations"
 
     def _seed_initial_accounts():
-        """Ensure standard demo/evaluation accounts exist if database is fresh."""
+        """Ensure standard demo/evaluation accounts exist if database is fresh (idempotent)."""
         try:
             accounts = [
                 ("Analyst User", "analyst@nidars.gov.in", "Analyst@2026", ROLE_USER),
@@ -53,10 +53,6 @@ try:
                     u.set_password(pwd)
                     db.session.add(u)
                     created = True
-                else:
-                    if role == ROLE_ADMIN and not existing.check_password(pwd):
-                        existing.set_password(pwd)
-                        created = True
             if created:
                 db.session.commit()
         except Exception:
