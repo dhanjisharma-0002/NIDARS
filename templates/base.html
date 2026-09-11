@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}NIDARS | AI Disaster Risk &amp; Safe Route System{% endblock %}</title>
+    <meta name="description" content="AI-Based North India Flood and Landslide Prediction with Disaster-Aware Safe Route Optimization Using Machine Learning and GIS">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"
+          integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+          integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+    
+    <!-- Custom Design System Stylesheet -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    {% block extra_head %}{% endblock %}
+<body class="{% block body_class %}{% endblock %}">
+    <!-- Accessibility Skip Link -->
+    <a href="#main-content" class="skip-link">Skip to main content</a>
+
+    <!-- Global Command Center Header & Navbar -->
+    <header class="nidars-header">
+        <nav class="navbar">
+            <div class="container-fluid px-3 px-lg-4">
+                <!-- Brand Mark & Identity -->
+                <a class="brand-badge" href="{{ url_for('main.index') }}">
+                    <div class="brand-icon-box" aria-hidden="true">
+                        <span>⚡</span>
+                    </div>
+                    <div>
+                        <span class="brand-title">NIDARS</span>
+                        <span class="brand-subtitle d-none d-sm-inline">AI Disaster Risk &amp; Safe Route System</span>
+                    </div>
+                </a>
+
+                <!-- Header Right Controls: Status & Theme Toggle -->
+                <div class="d-flex align-items-center gap-2 ms-auto me-5 me-sm-5 pe-2">
+                    <!-- Live System Status Indicator -->
+                    <div class="system-status-pill checking" id="system-status-pill" title="Live Health Check (/api/health)">
+                        <span class="status-dot"></span>
+                        <span class="status-text" id="system-status-text">ONLINE</span>
+                    </div>
+
+                    <!-- Dark/Light Mode Switcher -->
+                    <button class="theme-toggle-btn" id="theme-toggle-btn" title="Toggle Dark/Light Mode" aria-label="Toggle Theme">
+                        <span class="theme-icon">🌙</span>
+                    </button>
+
+                    {% if current_user.is_authenticated %}
+                    <!-- Notification Bell & Alert Center Dropdown -->
+                    <div class="dropdown me-1" id="notifications-dropdown-wrapper">
+                        <button class="notification-bell-btn border-0" type="button" id="nav-notifications-btn" data-bs-toggle="dropdown" aria-expanded="false" title="Advisory Notifications">
+                            <span aria-hidden="true">🔔</span>
+                            <span class="notification-unread-badge" id="nav-notification-badge" style="display: none;">0</span>
+                        </button>
+                        <div class="dropdown-menu dropdown-menu-end notifications-dropdown-menu" aria-labelledby="nav-notifications-btn">
+                            <div class="notifications-dropdown-header">
+                                <h4><span>🔔</span> Risk Advisories</h4>
+                                <div class="d-flex align-items-center gap-2">
+                                    <button type="button" class="btn btn-sm btn-outline-info py-0 px-2" id="btn-enable-browser-alerts" title="Enable Web Browser Push Alerts" style="font-size: 0.7rem;">
+                                        Push Alerts
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2" id="btn-mark-all-read" title="Mark All as Read" style="font-size: 0.7rem;">
+                                        Mark All Read
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="notifications-list-container" id="notifications-list-container">
+                                <div class="notification-empty-box">
+                                    <span>⏳ Loading advisories...</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <!-- Floating Vertically Movable Hamburger Navigation Button -->
+    <div class="nidars-movable-nav-wrapper" id="nidarsMovableNavWrapper">
+        <!-- First-use visual hint -->
+        <div class="nidars-drag-hint" id="nidarsDragHint" role="tooltip" aria-hidden="true">
+            <span>↕ Drag to reposition</span>
+        </div>
+
+        <button type="button" 
+                class="nidars-hamburger-btn" 
+                id="nidarsHamburgerBtn"
+                aria-label="Open navigation menu" 
+                aria-expanded="false" 
+                aria-controls="nidarsNavMenu">
+            <span class="hamburger-grip" aria-hidden="true" title="Drag vertically">
+                <span></span><span></span><span></span>
+            </span>
+            <span class="hamburger-icon-box" aria-hidden="true">
+                <span class="hamburger-line line-1"></span>
+                <span class="hamburger-line line-2"></span>
+                <span class="hamburger-line line-3"></span>
+            </span>
+        </button>
+    </div>
+
+    <!-- Backdrop Overlay -->
+    <div class="nidars-menu-backdrop" id="nidarsMenuBackdrop" aria-hidden="true"></div>
+
+    <!-- Premium Floating Navigation Menu Panel -->
+    <div class="nidars-nav-menu" id="nidarsNavMenu" role="dialog" aria-modal="true" aria-label="NIDARS Operations Console Navigation">
+        <!-- Menu Header -->
+        <div class="nidars-menu-header">
+            <div class="d-flex align-items-center gap-2">
+                <div class="brand-icon-box" style="width: 30px; height: 30px; font-size: 1rem; border-radius: 8px;">
+                    <span>⚡</span>
+                </div>
+                <div>
+                    <div class="fw-bold text-white lh-1" style="font-size: 0.95rem; letter-spacing: 0.03em;">NIDARS</div>
+                    <div class="text-muted" style="font-size: 0.68rem;">AI Disaster Risk &amp; Safe Route System</div>
+                </div>
+            </div>
+            <button type="button" class="btn-close btn-close-white ms-auto" id="nidarsMenuCloseBtn" aria-label="Close navigation menu"></button>
+        </div>
+
+        <!-- Scrollable Navigation Body -->
+        <div class="nidars-menu-body">
+            <!-- MAIN -->
+            <div class="nidars-menu-section-title">
+                <span>MAIN</span>
+            </div>
+            <div class="nidars-menu-nav-list">
+                <a href="{{ url_for('main.index') }}" class="nidars-menu-item {% if request.endpoint == 'main.index' %}active{% endif %}">
+                    <span class="item-icon">🏠</span>
+                    <span class="item-label">Home</span>
+                </a>
+                <a href="{{ url_for('main.dashboard') }}" class="nidars-menu-item {% if request.endpoint == 'main.dashboard' %}active{% endif %}">
+                    <span class="item-icon">📊</span>
+                    <span class="item-label">Dashboard</span>
+                </a>
+                <a href="{{ url_for('main.flood_prediction') }}" class="nidars-menu-item {% if request.endpoint == 'main.flood_prediction' %}active{% endif %}">
+                    <span class="item-icon">🌊</span>
+                    <span class="item-label">Flood ML</span>
+                </a>
+                <a href="{{ url_for('main.landslide_prediction') }}" class="nidars-menu-item {% if request.endpoint == 'main.landslide_prediction' %}active{% endif %}">
+                    <span class="item-icon">⛰️</span>
+                    <span class="item-label">Landslide ML</span>
+                </a>
+                <a href="{{ url_for('main.map_view') }}" class="nidars-menu-item {% if request.endpoint == 'main.map_view' %}active{% endif %}">
+                    <span class="item-icon">🗺️</span>
+                    <span class="item-label">GIS Risk Map</span>
+                </a>
+                <a href="{{ url_for('main.weather_view') }}" class="nidars-menu-item {% if request.endpoint == 'main.weather_view' %}active{% endif %}">
+                    <span class="item-icon">🌦️</span>
+                    <span class="item-label">Weather</span>
+                </a>
+                <a href="{{ url_for('main.alerts_page') }}" class="nidars-menu-item {% if request.endpoint == 'main.alerts_page' %}active{% endif %}">
+                    <span class="item-icon">⚠️</span>
+                    <span class="item-label">Early Warning</span>
+                </a>
+                <a href="{{ url_for('main.simulator_view') }}" class="nidars-menu-item {% if request.endpoint == 'main.simulator_view' %}active{% endif %}">
+                    <span class="item-icon">🔮</span>
+                    <span class="item-label">Simulator</span>
+                </a>
+                <a href="{{ url_for('main.route_optimizer_view') }}" class="nidars-menu-item {% if request.endpoint == 'main.route_optimizer_view' %}active{% endif %}">
+                    <span class="item-icon">🛣️</span>
+                    <span class="item-label">Safe Route</span>
+                </a>
+                <a href="{{ url_for('main.emergency_view') }}" class="nidars-menu-item emergency {% if request.endpoint == 'main.emergency_view' %}active{% endif %}">
+                    <span class="item-icon">🚑</span>
+                    <span class="item-label">Emergency</span>
+                </a>
+            </div>
+
+            <!-- TOOLS / OPERATIONS -->
+            <div class="nidars-menu-section-title mt-3">
+                <span>TOOLS / OPERATIONS</span>
+            </div>
+            <div class="nidars-menu-nav-list">
+                <a href="{{ url_for('main.report_incident_view') }}" class="nidars-menu-item {% if request.endpoint == 'main.report_incident_view' %}active{% endif %}">
+                    <span class="item-icon">📢</span>
+                    <span class="item-label">Report Incident</span>
+                </a>
+                <a href="{{ url_for('main.analytics_view') }}" class="nidars-menu-item {% if request.endpoint == 'main.analytics_view' %}active{% endif %}">
+                    <span class="item-icon">📈</span>
+                    <span class="item-label">Analytics</span>
+                </a>
+                {% if current_user.is_authenticated %}
+                <a href="{{ url_for('main.my_reports_view') }}" class="nidars-menu-item {% if request.endpoint == 'main.my_reports_view' %}active{% endif %}">
+                    <span class="item-icon">📋</span>
+                    <span class="item-label">My Reports</span>
+                </a>
+                {% endif %}
+            </div>
+
+            <!-- ADMIN (authorized users only) -->
+            {% if current_user.is_authenticated and current_user.is_admin() %}
+            <div class="nidars-menu-section-title admin mt-3">
+                <span>ADMIN</span>
+            </div>
+            <div class="nidars-menu-nav-list">
+                <a href="{{ url_for('main.admin_dashboard_view') }}" class="nidars-menu-item admin {% if request.endpoint == 'main.admin_dashboard_view' %}active{% endif %}">
+                    <span class="item-icon">🛡️</span>
+                    <span class="item-label">Admin Dashboard</span>
+                </a>
+                <a href="{{ url_for('main.admin_incidents_view') }}" class="nidars-menu-item admin {% if request.endpoint == 'main.admin_incidents_view' %}active{% endif %}">
+                    <span class="item-icon">⚠️</span>
+                    <span class="item-label">Incident Triage Queue</span>
+                </a>
+            </div>
+            {% endif %}
+
+            <!-- Section: Account & Auth -->
+            <div class="nidars-menu-divider my-3"></div>
+            {% if current_user.is_authenticated %}
+            <div class="nidars-menu-section-title">
+                <span>👤 ACCOUNT</span>
+            </div>
+            <div class="p-2 rounded mb-2" style="background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.08);">
+                <div class="d-flex align-items-center gap-2">
+                    <span class="badge bg-primary rounded-circle p-1 fs-6">👤</span>
+                    <div class="overflow-hidden">
+                        <div class="small fw-bold text-white text-truncate">{{ current_user.name or current_user.email }}</div>
+                        <div class="text-muted text-truncate" style="font-size: 0.72rem;">{{ current_user.email }}</div>
+                    </div>
+                    {% if current_user.is_admin() %}
+                    <span class="badge bg-warning text-dark ms-auto" style="font-size: 0.65rem;">ADMIN</span>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="nidars-menu-nav-list">
+                <a href="{{ url_for('main.dashboard') }}" class="nidars-menu-item">
+                    <span class="item-icon">📊</span>
+                    <span class="item-label">Dashboard</span>
+                </a>
+                <a href="{{ url_for('auth.logout') }}" class="nidars-menu-item text-danger fw-semibold">
+                    <span class="item-icon">🚪</span>
+                    <span class="item-label">Logout</span>
+                </a>
+            </div>
+            {% else %}
+            <div class="nidars-menu-section-title">
+                <span>🔐 AUTHENTICATION</span>
+            </div>
+            <div class="nidars-menu-nav-list gap-2">
+                <a href="{{ url_for('auth.login') }}" class="nidars-menu-item auth-btn">
+                    <span class="item-icon">🔑</span>
+                    <span class="item-label">Login</span>
+                </a>
+                <a href="{{ url_for('auth.register') }}" class="nidars-menu-item auth-btn primary">
+                    <span class="item-icon">✨</span>
+                    <span class="item-label">Register</span>
+                </a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Main Content Flow -->
+    <main id="main-content" class="{% block main_class %}page-main{% endblock %}">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+            <div class="container-fluid px-3 px-lg-4 pt-3">
+                {% for category, message in messages %}
+                <div class="alert alert-{{ category }} alert-dismissible fade show shadow-sm" role="alert">
+                    <div class="d-flex align-items-center gap-2">
+                        <span>{% if category == 'success' %}✅{% elif category == 'danger' %}⚠️{% else %}ℹ️{% endif %}</span>
+                        <div>{{ message }}</div>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        {% endwith %}
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Master Footer -->
+    <footer class="nidars-footer">
+        <div class="container-fluid px-3 px-lg-4">
+            <div class="row g-4 mb-4">
+                <!-- Col 1: Brand & Summary -->
+                <div class="col-lg-4">
+                    <div class="footer-brand mb-2">
+                        <span style="color: var(--brand-accent);">⚡</span> NIDARS Command Platform
+                    </div>
+                    <p class="text-muted small mb-3">
+                        AI-Based North India Flood &amp; Landslide Prediction with Disaster-Aware Safe Route Optimization Using Machine Learning and GIS.
+                    </p>
+                    <div class="d-flex flex-wrap gap-1">
+                        <span class="tech-tag">Python 3.14</span>
+                        <span class="tech-tag">Flask</span>
+                        <span class="tech-tag">Open-Meteo API</span>
+                        <span class="tech-tag">Random Forest</span>
+                        <span class="tech-tag">Gradient Boosting</span>
+                        <span class="tech-tag">Leaflet GIS</span>
+                        <span class="tech-tag">OSRM</span>
+                        <span class="tech-tag">OpenStreetMap</span>
+                    </div>
+                </div>
+
+                <!-- Col 2: Navigation Links -->
+                <div class="col-6 col-lg-2">
+                    <div class="footer-heading">Platform Modules</div>
+                    <ul class="footer-links">
+                        <li><a href="{{ url_for('main.dashboard') }}">Command Dashboard</a></li>
+                        <li><a href="{{ url_for('main.alerts_page') }}">Early Warning &amp; Advisories</a></li>
+                        <li><a href="{{ url_for('main.weather_view') }}">Real-Time Weather</a></li>
+                        <li><a href="{{ url_for('main.flood_prediction') }}">Flood ML Predictor</a></li>
+                        <li><a href="{{ url_for('main.landslide_prediction') }}">Landslide ML Predictor</a></li>
+                        <li><a href="{{ url_for('main.map_view') }}">GIS Spatial Risk Map</a></li>
+                    </ul>
+                </div>
+
+                <!-- Col 3: Navigation Links -->
+                <div class="col-6 col-lg-2">
+                    <div class="footer-heading">Operations</div>
+                    <ul class="footer-links">
+                        <li><a href="{{ url_for('main.simulator_view') }}">What-If Risk Simulator</a></li>
+                        <li><a href="{{ url_for('main.route_optimizer_view') }}">Safe Route Planner</a></li>
+                        <li><a href="{{ url_for('main.emergency_view') }}" class="text-danger fw-semibold">Emergency Assistance</a></li>
+                        {% if current_user.is_authenticated and current_user.is_admin() %}
+                        <li><a href="{{ url_for('main.admin_dashboard_view') }}" class="text-warning">Admin Console</a></li>
+                        {% endif %}
+                        <li><a href="/api/health" target="_blank">System API Health</a></li>
+                    </ul>
+                </div>
+
+
+                <!-- Col 4: Academic Disclaimer -->
+                <div class="col-lg-4">
+                    <div class="footer-heading text-danger">⚠️ Academic Prototype Disclaimer</div>
+                    <div class="disclaimer-box">
+                        <strong>For Academic &amp; Research Use:</strong> Hazard probabilities, spatial buffer overlays, and route risk scores are model-based computational estimates. In actual emergency situations, strictly adhere to directives from the <strong>National Disaster Response Force (NDRF), State Disaster Management Authorities (SDMA)</strong>, and local authorities.
+                    </div>
+                </div>
+            </div>
+
+            <!-- Copyright Line -->
+            <div class="d-flex flex-column flex-md-row justify-content-between align-items-center pt-3 border-top border-secondary-subtle small text-muted">
+                <div>&copy; 2026 NIDARS &mdash; Master of Computer Applications (MCA) Major Project</div>
+                <div class="mt-2 mt-md-0">Status: <span class="text-success fw-bold">Verified Production Build</span></div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Global High-End Toast Notification Container -->
+    <div class="toast-container position-fixed bottom-0 end-0 p-3" id="nidars-toast-container" style="z-index: 99999;" aria-live="polite" aria-atomic="true"></div>
+
+    <!-- Global Confirmation Dialog Modal -->
+    <div class="modal fade" id="nidarsConfirmModal" tabindex="-1" aria-labelledby="nidarsConfirmModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-sm">
+            <div class="modal-content nidars-confirm-dialog" style="background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-color);">
+                <div class="modal-header border-bottom border-secondary-subtle py-2">
+                    <h5 class="modal-title fs-6 fw-bold text-white d-flex align-items-center gap-2" id="nidarsConfirmModalLabel">
+                        <span id="nidars-confirm-icon">⚠️</span> <span id="nidars-confirm-title">Confirm Action</span>
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body py-3 small" id="nidars-confirm-message">
+                    Are you sure you want to proceed?
+                </div>
+                <div class="modal-footer border-top border-secondary-subtle py-2 d-flex justify-content-end gap-2">
+                    <button type="button" class="btn btn-sm btn-outline-custom" data-bs-dismiss="modal" id="nidars-confirm-cancel-btn">Cancel</button>
+                    <button type="button" class="btn btn-sm btn-danger" id="nidars-confirm-ok-btn">Confirm</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap 5 Bundle JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+            integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
+            crossorigin="anonymous"></script>
+    
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+            integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    
+    <!-- Global Script -->
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/notifications.js') }}"></script>
+    {% block extra_scripts %}{% endblock %}
+</body>
+</html>

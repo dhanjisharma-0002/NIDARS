@@ -1,0 +1,68 @@
+{
+  "best_model": "gradient_boosting",
+  "selection_criterion": "Highest recall, then F1, then ROC-AUC. Accuracy is reported only.",
+  "dataset_path": "C:\\Users\\DELL\\NIDARS\\data\\processed\\landslide_training.csv",
+  "source_row_count": 153873,
+  "cleaned_row_count": 141629,
+  "positive_count": 56,
+  "negative_count": 141573,
+  "feature_columns": [
+    "rainfall_24h",
+    "rainfall_72h",
+    "rainfall_7d",
+    "temperature",
+    "wind_speed",
+    "air_pressure",
+    "elevation",
+    "latitude",
+    "longitude"
+  ],
+  "target": "landslide_risk",
+  "random_state": 42,
+  "test_size": 0.2,
+  "train_rows": 113303,
+  "test_rows": 28326,
+  "train_positives": 45,
+  "train_negatives": 113258,
+  "test_positives": 11,
+  "test_negatives": 28315,
+  "xgboost_evaluated": false,
+  "metrics": {
+    "random_forest": {
+      "accuracy": 0.9995057544305584,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "confusion_matrix": [
+        [
+          28312,
+          3
+        ],
+        [
+          11,
+          0
+        ]
+      ],
+      "roc_auc": 0.8504230009792433
+    },
+    "gradient_boosting": {
+      "accuracy": 0.9995763609404787,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "confusion_matrix": [
+        [
+          28314,
+          1
+        ],
+        [
+          11,
+          0
+        ]
+      ],
+      "roc_auc": 0.9057406129099578
+    }
+  },
+  "trained_at": "2026-09-07T16:14:02.888314+00:00",
+  "disclaimer": "This is a college/research prototype and decision-support system. It is not an official disaster warning system. Official government warnings and advisories remain authoritative."
+}

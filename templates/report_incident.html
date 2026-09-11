@@ -1,0 +1,190 @@
+{% extends "base.html" %}
+{% block title %}Report Disaster Incident | NIDARS{% endblock %}
+
+{% block extra_head %}
+<!-- Leaflet Map CSS/JS for Coordinate Pinning -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-3 px-lg-5 py-4">
+    <!-- Page Header -->
+    <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3 mb-4">
+        <div>
+            <div class="d-flex align-items-center gap-2 mb-1">
+                <span class="badge bg-danger text-uppercase px-2 py-1" style="font-size: 0.7rem; letter-spacing: 0.05em;">CITIZEN RESPONSE</span>
+                <h1 class="h3 mb-0 text-white fw-bold">Report Disaster Incident</h1>
+            </div>
+            <p class="text-muted small mb-0">Report localized flooding, landslides, road blockages, or bridge issues to alert the community and emergency teams.</p>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+            <a href="{{ url_for('main.my_reports_view') }}" class="btn btn-sm btn-outline-custom">
+                <span>📋</span> My Reports
+            </a>
+            <a href="{{ url_for('main.map_view') }}" class="btn btn-sm btn-accent">
+                <span>🗺️</span> View Live Map
+            </a>
+        </div>
+    </div>
+
+    <!-- Alert / Status Banner -->
+    <div id="incident-alert-container"></div>
+
+    <div class="row g-4">
+        <!-- Left: Incident Submission Form -->
+        <div class="col-lg-7">
+            <article class="command-panel">
+                <div class="panel-header">
+                    <h2 class="panel-title">
+                        <span>📢</span> Incident Observation Details
+                    </h2>
+                    <span class="badge bg-secondary" style="font-size: 0.72rem;">Community Observation</span>
+                </div>
+
+                <form id="incident-form" enctype="multipart/form-data" novalidate>
+                    <div class="row g-3">
+                        <!-- Location Name -->
+                        <div class="col-12">
+                            <label class="form-label" for="location_name">
+                                <span>📍 Location Name / Address / Landmark</span> <span class="text-danger">*</span>
+                            </label>
+                            <input class="form-control" id="location_name" name="location_name" type="text" placeholder="e.g. NH-58 Near Rishikesh Bridge, Badrinath Highway" required maxlength="255">
+                        </div>
+
+                        <!-- Incident Type -->
+                        <div class="col-md-6">
+                            <label class="form-label" for="incident_type">
+                                <span>⚠️ Incident Type</span> <span class="text-danger">*</span>
+                            </label>
+                            <select class="form-select" id="incident_type" name="incident_type" required>
+                                <option value="" disabled selected>Select Incident Type</option>
+                                {% for itype in incident_types %}
+                                <option value="{{ itype }}">{{ itype }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <!-- Severity -->
+                        <div class="col-md-6">
+                            <label class="form-label" for="severity">
+                                <span>⚡ Hazard Severity Level</span> <span class="text-danger">*</span>
+                            </label>
+                            <select class="form-select" id="severity" name="severity" required>
+                                {% for sev in severities %}
+                                <option value="{{ sev }}" {% if sev == 'Moderate' %}selected{% endif %}>{{ sev }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <!-- Coordinates (Lat / Lon) with Auto-detect -->
+                        <div class="col-md-6">
+                            <label class="form-label" for="latitude">
+                                <span>🌐 Latitude (°N)</span> <span class="text-danger">*</span>
+                            </label>
+                            <input class="form-control" id="latitude" name="latitude" type="number" step="any" placeholder="e.g. 30.1033" required>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label" for="longitude">
+                                <span>🌐 Longitude (°E)</span> <span class="text-danger">*</span>
+                            </label>
+                            <input class="form-control" id="longitude" name="longitude" type="number" step="any" placeholder="e.g. 78.2947" required>
+                        </div>
+
+                        <!-- Coordinate Helper Buttons -->
+                        <div class="col-12 d-flex flex-wrap gap-2">
+                            <button type="button" class="btn btn-xs btn-outline-info" id="btn-geolocate">
+                                <span>🎯</span> Use Current GPS Location
+                            </button>
+                            <button type="button" class="btn btn-xs btn-outline-custom" id="btn-preset-shimla">
+                                <span>🏔️</span> Preset: Shimla
+                            </button>
+                            <button type="button" class="btn btn-xs btn-outline-custom" id="btn-preset-lucknow">
+                                <span>🌾</span> Preset: Lucknow
+                            </button>
+                            <button type="button" class="btn btn-xs btn-outline-custom" id="btn-preset-patna">
+                                <span>🌊</span> Preset: Patna
+                            </button>
+                        </div>
+
+                        <!-- Date/Time of Incident -->
+                        <div class="col-md-6">
+                            <label class="form-label" for="incident_date">
+                                <span>📅 Date &amp; Time of Observation</span>
+                            </label>
+                            <input class="form-control" id="incident_date" name="incident_date" type="datetime-local">
+                        </div>
+
+                        <!-- Optional Photo Upload -->
+                        <div class="col-md-6">
+                            <label class="form-label" for="photo">
+                                <span>📷 Photo Evidence (Optional)</span> <span class="badge bg-secondary">Max 5MB</span>
+                            </label>
+                            <input class="form-control" id="photo" name="photo" type="file" accept="image/jpeg,image/png,image/webp,image/gif">
+                            <span class="small text-muted" style="font-size: 0.72rem;">Accepted: JPG, PNG, WEBP, GIF</span>
+                        </div>
+
+                        <!-- Detailed Description -->
+                        <div class="col-12">
+                            <label class="form-label" for="description">
+                                <span>📝 Detailed Description</span> <span class="text-danger">*</span>
+                            </label>
+                            <textarea class="form-control" id="description" name="description" rows="4" placeholder="Describe the observed situation, extent of road blockage, water level, alternative detours, or trapped vehicles..." required minlength="5" maxlength="5000"></textarea>
+                        </div>
+                    </div>
+
+                    <!-- Submission Action -->
+                    <div class="d-flex justify-content-between align-items-center mt-4 pt-3 border-top border-secondary-subtle">
+                        <span class="small text-muted">All reports are submitted for verification review.</span>
+                        <button class="btn btn-danger-emergency btn-lg px-4" id="btn-submit-report" type="submit">
+                            <span>🚀</span> SUBMIT INCIDENT REPORT
+                        </button>
+                    </div>
+                </form>
+
+                <!-- Academic Disclaimer Callout -->
+                <div class="explain-disclaimer-callout mt-4">
+                    <p class="small text-muted mb-0" style="font-size: 0.78rem;">
+                        <strong>Notice:</strong> User-reported incidents represent community observations and should not be interpreted as official government disaster advisories. For life-threatening emergencies, dial 112 immediately.
+                    </p>
+                </div>
+            </article>
+        </div>
+
+        <!-- Right: Interactive Pinning Map & Guidance -->
+        <div class="col-lg-5">
+            <article class="command-panel h-100 d-flex flex-column justify-content-between">
+                <div>
+                    <div class="panel-header">
+                        <h2 class="panel-title">
+                            <span>🗺️</span> Click Map to Pin Location
+                        </h2>
+                        <span class="badge bg-info bg-opacity-25 text-info" style="font-size: 0.72rem;">Interactive</span>
+                    </div>
+
+                    <div id="picker-map" style="height: 320px; width: 100%; border-radius: var(--radius-md); border: 1px solid var(--border-color);" class="mb-3"></div>
+
+                    <div class="p-3 rounded mb-3 text-start small" style="background: var(--bg-surface); border: 1px solid var(--border-color);">
+                        <h3 class="h6 text-white fw-bold mb-2">📌 Reporting Guidelines:</h3>
+                        <ul class="text-muted ps-3 mb-0" style="font-size: 0.8rem; line-height: 1.6;">
+                            <li>Click anywhere on the map above to automatically populate the latitude &amp; longitude coordinates.</li>
+                            <li>Provide authentic and actionable details to help first responders and commuters.</li>
+                            <li>Photographs help administrators verify the severity of the hazard.</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="p-3 rounded text-center" style="background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.25);">
+                    <span class="text-success fw-bold d-block mb-1">🛡️ Community-Driven Disaster Resilience</span>
+                    <p class="small text-muted mb-0" style="font-size: 0.75rem;">Your report aids in updating real-time multi-route risk avoidance models.</p>
+                </div>
+            </article>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{{ url_for('static', filename='js/report_incident.js') }}"></script>
+{% endblock %}

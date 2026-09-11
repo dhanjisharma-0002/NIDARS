@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+{% block title %}Register | NIDARS Disaster Intelligence Console{% endblock %}
+
+{% block content %}
+<section class="auth-section py-5">
+    <div class="container-fluid px-3 px-lg-4">
+        <div class="row justify-content-center">
+            <div class="col-md-7 col-lg-5 col-xl-4">
+                <div class="command-panel p-4 shadow-lg">
+                    <!-- Brand Identity Header -->
+                    <div class="text-center mb-4">
+                        <div class="brand-icon-box mx-auto mb-2" style="width: 48px; height: 48px; font-size: 1.5rem;">
+                            <span>⚡</span>
+                        </div>
+                        <h1 class="h4 fw-bold text-white mb-1">Create NIDARS Account</h1>
+                        <p class="small text-muted mb-0">Register for disaster risk scoring and safe route planning.</p>
+                    </div>
+
+                    <form method="post" novalidate id="register-form">
+                        {{ form.hidden_tag() }}
+
+                        <!-- Name Input -->
+                        <div class="mb-3">
+                            <label class="form-label" for="{{ form.name.id }}">
+                                <span>👤 {{ form.name.label.text }}</span>
+                            </label>
+                            {{ form.name(class="form-control", autocomplete="name", placeholder="Full Name") }}
+                            {% for error in form.name.errors %}
+                            <div class="form-error mt-1 small text-danger">⚠️ {{ error }}</div>
+                            {% endfor %}
+                        </div>
+
+                        <!-- Email Input -->
+                        <div class="mb-3">
+                            <label class="form-label" for="{{ form.email.id }}">
+                                <span>📧 {{ form.email.label.text }}</span>
+                            </label>
+                            {{ form.email(class="form-control", autocomplete="email", placeholder="name@example.com") }}
+                            {% for error in form.email.errors %}
+                            <div class="form-error mt-1 small text-danger">⚠️ {{ error }}</div>
+                            {% endfor %}
+                        </div>
+
+                        <!-- Password Input -->
+                        <div class="mb-3">
+                            <label class="form-label" for="{{ form.password.id }}">
+                                <span>🔒 {{ form.password.label.text }}</span>
+                            </label>
+                            <div class="input-group">
+                                {{ form.password(class="form-control", id="reg-password", autocomplete="new-password", placeholder="At least 8 characters") }}
+                                <button class="btn btn-outline-custom" type="button" id="toggle-reg-password" title="Toggle password visibility">
+                                    👁️
+                                </button>
+                            </div>
+                            {% for error in form.password.errors %}
+                            <div class="form-error mt-1 small text-danger">⚠️ {{ error }}</div>
+                            {% endfor %}
+                        </div>
+
+                        <!-- Confirm Password Input -->
+                        <div class="mb-4">
+                            <label class="form-label" for="{{ form.confirm_password.id }}">
+                                <span>🔒 {{ form.confirm_password.label.text }}</span>
+                            </label>
+                            <div class="input-group">
+                                {{ form.confirm_password(class="form-control", id="reg-confirm-password", autocomplete="new-password", placeholder="Repeat password") }}
+                                <button class="btn btn-outline-custom" type="button" id="toggle-reg-confirm" title="Toggle password visibility">
+                                    👁️
+                                </button>
+                            </div>
+                            {% for error in form.confirm_password.errors %}
+                            <div class="form-error mt-1 small text-danger">⚠️ {{ error }}</div>
+                            {% endfor %}
+                        </div>
+
+                        <!-- Submit Button -->
+                        <div class="d-grid mb-3">
+                            <button class="btn btn-primary btn-lg" type="submit">
+                                <span>✨</span> Create Account
+                            </button>
+                        </div>
+                    </form>
+
+                    <div class="text-center pt-3 border-top border-secondary-subtle">
+                        <p class="small text-muted mb-0">
+                            Already have an account?
+                            <a href="{{ url_for('auth.login') }}" class="fw-bold text-info">Log in</a>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        function setupToggle(btnId, inputId) {
+            var btn = document.getElementById(btnId);
+            var input = document.getElementById(inputId);
+            if (btn && input) {
+                btn.addEventListener("click", function() {
+                    var isPassword = input.getAttribute("type") === "password";
+                    input.setAttribute("type", isPassword ? "text" : "password");
+                    btn.textContent = isPassword ? "🙈" : "👁️";
+                });
+            }
+        }
+        setupToggle("toggle-reg-password", "reg-password");
+        setupToggle("toggle-reg-confirm", "reg-confirm-password");
+    });
+</script>
+{% endblock %}

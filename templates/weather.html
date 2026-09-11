@@ -1,0 +1,260 @@
+{% extends "base.html" %}
+{% block title %}Real-Time Weather Monitoring | NIDARS{% endblock %}
+
+{% block extra_head %}
+<!-- Chart.js 4.4 -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-3 px-lg-4 py-4">
+    <!-- Weather Dashboard Header -->
+    <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3 mb-4">
+        <div>
+            <div class="d-flex align-items-center gap-2 mb-1">
+                <span class="badge bg-info text-uppercase px-2 py-1" style="font-size: 0.7rem; letter-spacing: 0.05em;">METEOROLOGICAL TELEMETRY</span>
+                <h1 class="h3 mb-0 text-white fw-bold">North India Real-Time Weather Monitoring</h1>
+            </div>
+            <p class="text-muted small mb-0">Live hydrometeorological observations, barometric analysis, and 24-hour predictive trend models across North India.</p>
+        </div>
+        
+        <div class="d-flex align-items-center gap-2">
+            <button id="btn-weather-gps" class="btn btn-sm btn-outline-info d-flex align-items-center gap-2">
+                <span class="spinner-border spinner-border-sm d-none" id="gps-spinner"></span>
+                <span>📍 My GPS Weather</span>
+            </button>
+            <button id="btn-refresh-weather" class="btn btn-sm btn-outline-custom" title="Refresh Live Weather">
+                <span>🔄</span> Refresh Telemetry
+            </button>
+            <a href="{{ url_for('main.map_view') }}" class="btn btn-sm btn-primary">
+                <span>🗺️</span> GIS Risk Map
+            </a>
+        </div>
+    </div>
+
+    <!-- Location & Geographic Station Selector Toolbar -->
+    <div class="command-panel p-3 mb-4">
+        <div class="row g-2 align-items-center">
+            <!-- State Selector -->
+            <div class="col-md-3">
+                <label for="weather-state-select" class="form-label mb-1">State / Province</label>
+                <select id="weather-state-select" class="form-select form-select-sm">
+                    <option value="ALL" selected>All North India States</option>
+                    <option value="HP">Himachal Pradesh (HP)</option>
+                    <option value="JK">Jammu &amp; Kashmir (JK)</option>
+                    <option value="UP">Uttar Pradesh (UP)</option>
+                    <option value="BR">Bihar (BR)</option>
+                </select>
+            </div>
+
+            <!-- Station Dropdown -->
+            <div class="col-md-4">
+                <label for="weather-station-select" class="form-label mb-1">Meteorological Station</label>
+                <select id="weather-station-select" class="form-select form-select-sm">
+                    <option value="Shimla" selected>Shimla (HP) &mdash; 2,276m</option>
+                    <!-- Populated dynamically via /api/weather/stations -->
+                </select>
+            </div>
+
+            <!-- Coordinate Direct Entry / Search -->
+            <div class="col-md-3">
+                <label for="weather-search-input" class="form-label mb-1">Search Station / District</label>
+                <div class="input-group input-group-sm">
+                    <span class="input-group-text">🔍</span>
+                    <input type="text" id="weather-search-input" class="form-control form-control-sm" placeholder="e.g. Manali, Patna...">
+                </div>
+            </div>
+
+            <!-- Station Coordinates Tag -->
+            <div class="col-md-2 text-md-end pt-3 pt-md-0">
+                <span class="text-muted small d-block">Coordinates:</span>
+                <span class="badge bg-dark border border-secondary text-info" id="badge-station-coords">31.1048°N, 77.1734°E</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Live Weather Alert Banner -->
+    <div id="weather-alert-banner" class="alert alert-success d-flex align-items-center justify-content-between py-2 px-3 mb-4 shadow-sm" role="alert">
+        <div class="d-flex align-items-center gap-2">
+            <span class="fs-4" id="alert-icon">🛡️</span>
+            <div>
+                <strong id="alert-title">NORMAL METEOROLOGICAL CONDITIONS</strong> &mdash;
+                <span id="alert-advisory" class="small">No extreme precipitation, gale wind, or barometric depression detected.</span>
+            </div>
+        </div>
+        <span class="risk-badge low" id="alert-badge">LOW RISK</span>
+    </div>
+
+    <!-- Hero Weather Overview & Metric Cards Row -->
+    <div class="row g-4 mb-4">
+        <!-- Hero Weather Condition Card -->
+        <div class="col-lg-5">
+            <article class="command-panel h-100 position-relative overflow-hidden" id="hero-weather-card">
+                <div class="d-flex justify-content-between align-items-start mb-3">
+                    <div>
+                        <span class="badge bg-primary bg-opacity-25 text-primary border border-primary border-opacity-50 px-2 py-1 mb-2 d-inline-block">LIVE OBSERVATION</span>
+                        <h2 class="h3 fw-bold text-white mb-0" id="hero-station-name">Shimla Meteorological Station</h2>
+                        <span class="text-muted small" id="hero-station-region">Himachal Pradesh &middot; Elevation: 2,276m</span>
+                    </div>
+                    <div class="display-3" id="hero-weather-icon">☀️</div>
+                </div>
+
+                <div class="d-flex align-items-baseline gap-3 my-3">
+                    <div class="display-2 fw-bold text-white" id="hero-temperature">18.2<span style="font-size: 2.2rem; color: var(--brand-accent);">°C</span></div>
+                    <div class="small text-muted">
+                        <div>Feels like: <strong class="text-light" id="hero-feels-like">17.5°C</strong></div>
+                        <div>Condition: <strong class="text-info" id="hero-condition">Clear sky</strong></div>
+                    </div>
+                </div>
+
+                <div class="d-flex justify-content-between align-items-center pt-3 border-top border-secondary-subtle small text-muted">
+                    <span>📡 Data Source: <strong class="text-light">Open-Meteo WMO Grid</strong></span>
+                    <span id="hero-last-updated">Updated: Just now</span>
+                </div>
+            </article>
+        </div>
+
+        <!-- 4 Specialized Monitoring Metric Cards -->
+        <div class="col-lg-7">
+            <div class="row g-3 h-100">
+                <!-- Card 1: Rainfall Monitoring -->
+                <div class="col-sm-6">
+                    <article class="metric-card accent h-100 p-3 d-flex flex-column justify-content-between">
+                        <div class="metric-card-top">
+                            <span class="metric-label">Rainfall Monitoring</span>
+                            <div class="metric-icon-box">🌧️</div>
+                        </div>
+                        <div>
+                            <div class="metric-number text-info" id="stat-rainfall-rate">0.0 <span style="font-size: 1rem; color: var(--text-muted);">mm/h</span></div>
+                            <div class="small text-muted" id="stat-rainfall-desc">Normal / Light (< 10 mm/day)</div>
+                        </div>
+                        <div class="metric-footer mt-2 pt-2 border-top border-secondary-subtle">
+                            <span class="risk-badge low" id="badge-rainfall-risk">NORMAL</span>
+                            <span class="text-muted">IMD Flood Indicator</span>
+                        </div>
+                    </article>
+                </div>
+
+                <!-- Card 2: Temperature & Humidity -->
+                <div class="col-sm-6">
+                    <article class="metric-card primary h-100 p-3 d-flex flex-column justify-content-between">
+                        <div class="metric-card-top">
+                            <span class="metric-label">Humidity &amp; Air</span>
+                            <div class="metric-icon-box">💧</div>
+                        </div>
+                        <div>
+                            <div class="metric-number text-primary" id="stat-humidity">64<span style="font-size: 1rem; color: var(--text-muted);">%</span></div>
+                            <div class="small text-muted">Relative Atmospheric Moisture</div>
+                        </div>
+                        <div class="metric-footer mt-2 pt-2 border-top border-secondary-subtle">
+                            <span class="text-success fw-bold">Stable</span>
+                            <span class="text-muted">Dew Point Optimal</span>
+                        </div>
+                    </article>
+                </div>
+
+                <!-- Card 3: Wind Monitoring -->
+                <div class="col-sm-6">
+                    <article class="metric-card warning h-100 p-3 d-flex flex-column justify-content-between">
+                        <div class="metric-card-top">
+                            <span class="metric-label">Wind Velocity &amp; Direction</span>
+                            <div class="metric-icon-box">💨</div>
+                        </div>
+                        <div>
+                            <div class="metric-number text-warning" id="stat-wind-speed">3.5 <span style="font-size: 1rem; color: var(--text-muted);">m/s</span></div>
+                            <div class="small text-muted" id="stat-wind-dir">Direction: 140° (SE) &middot; 12.6 km/h</div>
+                        </div>
+                        <div class="metric-footer mt-2 pt-2 border-top border-secondary-subtle">
+                            <span class="risk-badge low" id="badge-wind-risk">LIGHT BREEZE</span>
+                            <span class="text-muted">Storm Alert Threshold</span>
+                        </div>
+                    </article>
+                </div>
+
+                <!-- Card 4: Air Pressure & Barometric Risk -->
+                <div class="col-sm-6">
+                    <article class="metric-card danger h-100 p-3 d-flex flex-column justify-content-between">
+                        <div class="metric-card-top">
+                            <span class="metric-label">Atmospheric Pressure</span>
+                            <div class="metric-icon-box">⏲️</div>
+                        </div>
+                        <div>
+                            <div class="metric-number text-white" id="stat-pressure">1012.4 <span style="font-size: 1rem; color: var(--text-muted);">hPa</span></div>
+                            <div class="small text-muted" id="stat-pressure-desc">Stable Surface Barometric Pressure</div>
+                        </div>
+                        <div class="metric-footer mt-2 pt-2 border-top border-secondary-subtle">
+                            <span class="risk-badge low" id="badge-pressure-risk">STABLE</span>
+                            <span class="text-muted">Depression Monitor</span>
+                        </div>
+                    </article>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 24-Hour Trend Charts Row (Chart.js) -->
+    <div class="row g-4 mb-4">
+        <!-- Temperature Trend Chart -->
+        <div class="col-lg-4">
+            <article class="command-panel h-100">
+                <div class="panel-header py-1 mb-3">
+                    <h3 class="panel-title" style="font-size: 0.95rem;">
+                        <span>🌡️</span> 24h Temperature Trend (°C)
+                    </h3>
+                </div>
+                <div style="position: relative; height: 230px;">
+                    <canvas id="chart-weather-temp" aria-label="Temperature Trend Chart"></canvas>
+                </div>
+            </article>
+        </div>
+
+        <!-- Precipitation / Rainfall Trend Chart -->
+        <div class="col-lg-4">
+            <article class="command-panel h-100">
+                <div class="panel-header py-1 mb-3">
+                    <h3 class="panel-title" style="font-size: 0.95rem;">
+                        <span>🌧️</span> 24h Hourly Precipitation (mm)
+                    </h3>
+                </div>
+                <div style="position: relative; height: 230px;">
+                    <canvas id="chart-weather-rain" aria-label="Rainfall Trend Chart"></canvas>
+                </div>
+            </article>
+        </div>
+
+        <!-- Wind Speed Trend Chart -->
+        <div class="col-lg-4">
+            <article class="command-panel h-100">
+                <div class="panel-header py-1 mb-3">
+                    <h3 class="panel-title" style="font-size: 0.95rem;">
+                        <span>💨</span> 24h Wind Speed Trend (m/s)
+                    </h3>
+                </div>
+                <div style="position: relative; height: 230px;">
+                    <canvas id="chart-weather-wind" aria-label="Wind Speed Trend Chart"></canvas>
+                </div>
+            </article>
+        </div>
+    </div>
+
+    <!-- Spatial Weather Station Leaflet Map -->
+    <div class="row g-4">
+        <div class="col-12">
+            <article class="command-panel p-0 overflow-hidden">
+                <div class="p-3 bg-dark bg-opacity-50 border-bottom border-secondary d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="badge bg-info px-2 py-1">SPATIAL METEOROLOGICAL NETWORK</span>
+                        <h2 class="h6 mb-0 text-white fw-bold">North India Weather Station Observational Grid</h2>
+                    </div>
+                    <span class="small text-muted">Click any station node to load live telemetry and 24h forecast</span>
+                </div>
+                <div id="weather-stations-map" style="height: 420px; width: 100%; background: #070d18;"></div>
+            </article>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{{ url_for('static', filename='js/weather.js') }}"></script>
+{% endblock %}

@@ -1,0 +1,212 @@
+{% extends "base.html" %}
+{% block title %}NIDARS — AI Disaster Risk &amp; Safe Route Optimization Platform{% endblock %}
+
+{% block content %}
+<!-- Hero Section with Animated GIS Backdrop -->
+<section class="hero-wrapper position-relative">
+    <div class="hero-grid-bg"></div>
+    <div class="container-fluid px-3 px-lg-5 hero-content">
+        <div class="row align-items-center g-5">
+            <!-- Left Hero Content -->
+            <div class="col-lg-7">
+                <div class="hero-badge">
+                    <span>⚡</span> <span>North India Geospatial AI Intelligence</span>
+                </div>
+                <h1 class="hero-title">
+                    AI-Powered Disaster Risk Intelligence &amp; Safe Routing
+                </h1>
+                <p class="hero-lead">
+                    Predict flood and landslide risks, visualize multi-hazard zones across 64+ North India meteorological stations, and compute disaster-aware evacuation routes using Machine Learning and GIS.
+                </p>
+                <div class="d-flex flex-wrap gap-3">
+                    <a class="btn btn-accent btn-lg px-4" href="{{ url_for('main.map_view') }}">
+                        <span>🗺️</span> Explore GIS Risk Map
+                    </a>
+                    <a class="btn btn-primary btn-lg px-4" href="{{ url_for('main.flood_prediction') }}">
+                        <span>🌊</span> Predict Disaster Risk
+                    </a>
+                    <a class="btn btn-outline-custom btn-lg px-3" href="{{ url_for('main.route_optimizer_view') }}">
+                        <span>🛣️</span> Safe Route Planner
+                    </a>
+                </div>
+            </div>
+
+            <!-- Right Hero Widget: Floating Live Command Preview -->
+            <div class="col-lg-5">
+                <div class="hero-glass-widget">
+                    <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom border-secondary-subtle">
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="badge bg-primary px-2 py-1">COMMAND RADAR</span>
+                            <span class="small text-muted">North India Grid</span>
+                        </div>
+                        <span class="badge bg-success bg-opacity-25 text-success border border-success border-opacity-50">64 STATIONS ACTIVE</span>
+                    </div>
+
+                    <!-- Live Grid Preview Cards -->
+                    <div class="d-flex flex-column gap-2 mb-3">
+                        <div class="p-3 rounded" style="background: var(--bg-surface); border: 1px solid var(--border-color);">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <strong class="small text-light">🌊 Flood Classifier (Random Forest)</strong>
+                                <span class="risk-badge low">ROC-AUC 0.997</span>
+                            </div>
+                            <div class="small text-muted">98.4% Accuracy &middot; 24h/72h/7d Rainfall Feature Schema</div>
+                        </div>
+
+                        <div class="p-3 rounded" style="background: var(--bg-surface); border: 1px solid var(--border-color);">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <strong class="small text-light">⛰️ Landslide Engine (Gradient Boosting)</strong>
+                                <span class="risk-badge moderate">ROC-AUC 0.906</span>
+                            </div>
+                            <div class="small text-muted">NASA COOLR Ground Truth &middot; Validated Calibrated Risk Bands</div>
+                        </div>
+
+                        <div class="p-3 rounded" style="background: var(--bg-surface); border: 1px solid var(--border-color);">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <strong class="small text-light">🛣️ Disaster Path Cost Optimizer</strong>
+                                <span class="risk-badge high">&alpha; = 2.0 Risk Penalty</span>
+                            </div>
+                            <div class="small text-muted">OSRM Road Network &middot; Waypoint Spatial Hazard Interpolation</div>
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-between align-items-center pt-2 border-top border-secondary-subtle">
+                        <span class="small text-muted">Verified Decision Support Prototype</span>
+                        <a href="{{ url_for('main.dashboard') }}" class="btn btn-sm btn-outline-custom">Open Dashboard &rarr;</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- System Statistics Grid Section -->
+<section class="py-5" style="background: var(--bg-panel); border-top: 1px solid var(--border-color); border-bottom: 1px solid var(--border-color);">
+    <div class="container-fluid px-3 px-lg-5">
+        <div class="row g-4 text-center">
+            <div class="col-6 col-md-3">
+                <div class="p-3">
+                    <div class="metric-number text-primary" style="font-size: 2.5rem;">64+</div>
+                    <div class="metric-label">Weather Stations</div>
+                    <p class="small text-muted mb-0">JK, HP, UP &amp; Bihar Coverage</p>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="p-3">
+                    <div class="metric-number text-info" style="font-size: 2.5rem;">2</div>
+                    <div class="metric-label">Major Hazards</div>
+                    <p class="small text-muted mb-0">Flood &amp; Landslide Multi-Hazard</p>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="p-3">
+                    <div class="metric-number text-success" style="font-size: 2.5rem;">AI</div>
+                    <div class="metric-label">Machine Learning</div>
+                    <p class="small text-muted mb-0">Dual Trained Prediction Pipelines</p>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="p-3">
+                    <div class="metric-number text-warning" style="font-size: 2.5rem;">GIS</div>
+                    <div class="metric-label">Route Optimization</div>
+                    <p class="small text-muted mb-0">OSRM Road Network Risk Analysis</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Feature Capabilities Showcase -->
+<section class="py-5">
+    <div class="container-fluid px-3 px-lg-5">
+        <div class="text-center mb-5">
+            <span class="badge bg-primary bg-opacity-20 text-primary px-3 py-1 mb-2">PLATFORM ARCHITECTURE</span>
+            <h2 class="h2 mb-2">Integrated Disaster Intelligence Capabilities</h2>
+            <p class="text-muted" style="max-width: 38rem; margin: 0 auto;">
+                Explore the five integrated components designed for disaster risk mitigation and life safety decision support.
+            </p>
+        </div>
+
+        <div class="row g-4">
+            <!-- Feature 1: GIS Risk Map -->
+            <div class="col-md-6 col-lg-4">
+                <div class="command-panel h-100 d-flex flex-column">
+                    <div class="metric-icon-box bg-primary bg-opacity-20 text-primary mb-3">
+                        <span>🗺️</span>
+                    </div>
+                    <h3 class="h5 mb-2">GIS Spatial Risk Map</h3>
+                    <p class="text-muted small flex-grow-1">
+                        Interactive Leaflet visualization mapping real meteorological observations and joint multi-hazard risk scores across 64 genuine meteorological stations.
+                    </p>
+                    <a href="{{ url_for('main.map_view') }}" class="btn btn-sm btn-outline-custom mt-2">
+                        View Risk Map &rarr;
+                    </a>
+                </div>
+            </div>
+
+            <!-- Feature 2: Safe Route Optimizer -->
+            <div class="col-md-6 col-lg-4">
+                <div class="command-panel h-100 d-flex flex-column">
+                    <div class="metric-icon-box bg-success bg-opacity-20 text-success mb-3">
+                        <span>🛣️</span>
+                    </div>
+                    <h3 class="h5 mb-2">Disaster-Aware Safe Routing</h3>
+                    <p class="text-muted small flex-grow-1">
+                        Evaluates road driving corridors from OSRM, sampling hazard exposure every 5&ndash;10 km to penalize paths cutting through flood inundation or landslide zones.
+                    </p>
+                    <a href="{{ url_for('main.route_optimizer_view') }}" class="btn btn-sm btn-outline-custom mt-2">
+                        Calculate Safe Route &rarr;
+                    </a>
+                </div>
+            </div>
+
+            <!-- Feature 3: Emergency Assistance -->
+            <div class="col-md-6 col-lg-4">
+                <div class="command-panel h-100 d-flex flex-column" style="border-color: rgba(239, 68, 68, 0.3);">
+                    <div class="metric-icon-box bg-danger bg-opacity-20 text-danger mb-3">
+                        <span>🚨</span>
+                    </div>
+                    <h3 class="h5 mb-2">Emergency Facility Mode</h3>
+                    <p class="text-muted small flex-grow-1">
+                        Queries live OpenStreetMap Overpass amenities (hospitals, police, shelters) with GPS positioning, ranking facilities by localized hazard safety cost.
+                    </p>
+                    <a href="{{ url_for('main.emergency_view') }}" class="btn btn-sm btn-danger-emergency mt-2">
+                        Emergency Assistance &rarr;
+                    </a>
+                </div>
+            </div>
+
+            <!-- Feature 4: Flood ML Engine -->
+            <div class="col-md-6 col-lg-6">
+                <div class="command-panel h-100 d-flex flex-column">
+                    <div class="metric-icon-box bg-info bg-opacity-20 text-info mb-3">
+                        <span>🌊</span>
+                    </div>
+                    <h3 class="h5 mb-2">Flood ML Risk Classifier</h3>
+                    <p class="text-muted small flex-grow-1">
+                        Random Forest classifier utilizing 9 hydrometeorological features (24h, 72h, 7d cumulative precipitation, temperature, pressure, wind, elevation, coordinates) validated on historical North India floods.
+                    </p>
+                    <a href="{{ url_for('main.flood_prediction') }}" class="btn btn-sm btn-outline-custom mt-2">
+                        Launch Flood Predictor &rarr;
+                    </a>
+                </div>
+            </div>
+
+            <!-- Feature 5: Landslide ML Engine -->
+            <div class="col-md-6 col-lg-6">
+                <div class="command-panel h-100 d-flex flex-column">
+                    <div class="metric-icon-box bg-warning bg-opacity-20 text-warning mb-3">
+                        <span>⛰️</span>
+                    </div>
+                    <h3 class="h5 mb-2">Landslide ML Risk Classifier</h3>
+                    <p class="text-muted small flex-grow-1">
+                        Gradient Boosting classifier trained on NASA Global Landslide Catalog occurrences across North India with calibrated operational advisory thresholds (&tau; = 0.02, &tau; = 0.10).
+                    </p>
+                    <a href="{{ url_for('main.landslide_prediction') }}" class="btn btn-sm btn-outline-custom mt-2">
+                        Launch Landslide Predictor &rarr;
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}

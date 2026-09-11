@@ -1,0 +1,128 @@
+import os
+from pathlib import Path
+from urllib.parse import quote_plus
+
+from dotenv import load_dotenv
+
+BASE_DIR = Path(__file__).resolve().parent
+load_dotenv(BASE_DIR / ".env", override=True)
+
+
+def _database_uri():
+    user = os.environ.get("DB_USER", "")
+    password = quote_plus(os.environ.get("DB_PASSWORD", ""))
+    host = os.environ.get("DB_HOST", "127.0.0.1")
+    port = os.environ.get("DB_PORT", "3306")
+    name = os.environ.get("DB_NAME", "nidars_db")
+    return f"mysql+pymysql://{user}:{password}@{host}:{port}/{name}?charset=utf8mb4"
+
+
+class Config:
+    """Base configuration. Credentials and secrets come from the environment only."""
+
+    SECRET_KEY = os.environ.get("SECRET_KEY")
+    DEBUG = os.environ.get("FLASK_DEBUG", "true").lower() in {"1", "true", "yes"}
+
+    SQLALCHEMY_DATABASE_URI = os.environ.get("DATABASE_URL") or _database_uri()
+    SQLALCHEMY_TRACK_MODIFICATIONS = False
+    SQLALCHEMY_ENGINE_OPTIONS = {
+        "pool_pre_ping": True,
+        "pool_recycle": 280,
+    }
+
+    SESSION_COOKIE_HTTPONLY = True
+    SESSION_COOKIE_SAMESITE = "Lax"
+    WTF_CSRF_ENABLED = True
+
+    FLOOD_DATASET_PATH = BASE_DIR / "data" / "processed" / "flood_training.csv"
+    FLOOD_MODEL_DIR = BASE_DIR / "ml" / "flood" / "model"
+    FLOOD_MODEL_PATH = FLOOD_MODEL_DIR / "flood_model.pkl"
+    FLOOD_PREPROCESSOR_PATH = FLOOD_MODEL_DIR / "flood_preprocessor.pkl"
+    FLOOD_EVALUATION_PATH = FLOOD_MODEL_DIR / "evaluation.json"
+    # Application UI thresholds only — not official IMD/NDMA warning bands.
+    FLOOD_RISK_LOW_MAX = 0.25
+    FLOOD_RISK_MODERATE_MAX = 0.50
+    FLOOD_RISK_HIGH_MAX = 0.75
+
+    LANDSLIDE_DATASET_PATH = BASE_DIR / "data" / "processed" / "landslide_training.csv"
+    LANDSLIDE_MODEL_DIR = BASE_DIR / "ml" / "landslide" / "model"
+    LANDSLIDE_MODEL_PATH = LANDSLIDE_MODEL_DIR / "landslide_model.pkl"
+    LANDSLIDE_PREPROCESSOR_PATH = LANDSLIDE_MODEL_DIR / "landslide_preprocessor.pkl"
+    LANDSLIDE_EVALUATION_PATH = LANDSLIDE_MODEL_DIR / "evaluation.json"
+    # Validated Phase 4.1 thresholds (advisory: 0.02, warning: 0.10)
+    LANDSLIDE_RISK_LOW_MAX = 0.02
+    LANDSLIDE_RISK_MODERATE_MAX = 0.10
+    LANDSLIDE_RISK_HIGH_MAX = 0.25
+
+    # GIS configuration & spatial risk mapping
+    NORTH_INDIA_WEATHER_PATH = BASE_DIR / "data" / "processed" / "north_india_weather.csv"
+    GIS_GEOJSON_DIR = BASE_DIR / "gis" / "geojson"
+    GIS_FLOOD_WEIGHT = 0.50
+    GIS_LANDSLIDE_WEIGHT = 0.50
+    GIS_COMBINED_RISK_LOW_MAX = 0.25
+    GIS_COMBINED_RISK_MODERATE_MAX = 0.50
+    GIS_COMBINED_RISK_HIGH_MAX = 0.75
+
+    # Phase 6: Safe Route Optimization configuration
+    OSRM_BASE_URL = os.environ.get("OSRM_BASE_URL", "https://router.project-osrm.org")
+    ROUTE_PROFILE = os.environ.get("ROUTE_PROFILE", "driving")
+    ROUTE_STATION_RADIUS_KM = float(os.environ.get("ROUTE_STATION_RADIUS_KM", "50.0"))
+    ROUTE_SAMPLE_INTERVAL_KM = float(os.environ.get("ROUTE_SAMPLE_INTERVAL_KM", "1.0"))
+    ROUTE_RISK_PENALTY_FACTOR = float(os.environ.get("ROUTE_RISK_PENALTY_FACTOR", "10.0"))
+    ROUTE_MIN_CONFIDENCE_COVERAGE = float(os.environ.get("ROUTE_MIN_CONFIDENCE_COVERAGE", "30.0"))
+    OSRM_TIMEOUT_SECONDS = float(os.environ.get("OSRM_TIMEOUT_SECONDS", "10.0"))
+
+    # Phase 7: Emergency Mode & Facility Discovery configuration
+    OVERPASS_BASE_URL = os.environ.get("OVERPASS_BASE_URL", "https://overpass-api.de/api/interpreter")
+    EMERGENCY_SEARCH_RADIUS_KM = float(os.environ.get("EMERGENCY_SEARCH_RADIUS_KM", "15.0"))
+    EMERGENCY_MAX_RESULTS = int(os.environ.get("EMERGENCY_MAX_RESULTS", "25"))
+    OVERPASS_TIMEOUT_SECONDS = float(os.environ.get("OVERPASS_TIMEOUT_SECONDS", "12.0"))
+
+    # Phase 14: Emergency Evacuation & Safe Zone Analysis configuration
+    EVACUATION_MAX_CANDIDATES = int(os.environ.get("EVACUATION_MAX_CANDIDATES", "5"))
+    EVACUATION_MAX_DISTANCE_KM = float(os.environ.get("EVACUATION_MAX_DISTANCE_KM", "25.0"))
+    EVACUATION_WEIGHT_DEST_RISK = float(os.environ.get("EVACUATION_WEIGHT_DEST_RISK", "0.40"))
+    EVACUATION_WEIGHT_ROUTE_RISK = float(os.environ.get("EVACUATION_WEIGHT_ROUTE_RISK", "0.35"))
+    EVACUATION_WEIGHT_DISTANCE = float(os.environ.get("EVACUATION_WEIGHT_DISTANCE", "0.20"))
+    EVACUATION_WEIGHT_TYPE = float(os.environ.get("EVACUATION_WEIGHT_TYPE", "0.05"))
+
+    # Phase 9: Real-Time Weather Monitoring configuration
+    WEATHER_API_KEY = os.environ.get("WEATHER_API_KEY", "")
+    WEATHER_PROVIDER = os.environ.get("WEATHER_PROVIDER", "open-meteo")
+    WEATHER_API_BASE_URL = os.environ.get("WEATHER_API_BASE_URL", "https://api.open-meteo.com/v1/forecast")
+    WEATHER_TIMEOUT_SECONDS = float(os.environ.get("WEATHER_TIMEOUT_SECONDS", "8.0"))
+
+    # Phase 15: Incident Reporting Upload configuration
+    INCIDENT_UPLOAD_DIR = BASE_DIR / "static" / "uploads" / "incidents"
+    MAX_CONTENT_LENGTH = 5 * 1024 * 1024  # 5 MB max request size
+    ALLOWED_IMAGE_EXTENSIONS = {"jpg", "jpeg", "png", "webp", "gif"}
+
+
+
+class DevelopmentConfig(Config):
+
+    DEBUG = True
+    SESSION_COOKIE_SECURE = False
+
+
+class ProductionConfig(Config):
+    DEBUG = False
+    SESSION_COOKIE_SECURE = True
+
+
+class TestConfig(Config):
+    TESTING = True
+    DEBUG = False
+    SECRET_KEY = "nidars-test-secret"
+    WTF_CSRF_ENABLED = False
+    SQLALCHEMY_DATABASE_URI = "sqlite://"
+    SQLALCHEMY_ENGINE_OPTIONS = {}
+
+
+def get_config():
+    env = os.environ.get("FLASK_ENV", "development").lower()
+    if env == "production":
+        return ProductionConfig
+    if env == "testing":
+        return TestConfig
+    return DevelopmentConfig

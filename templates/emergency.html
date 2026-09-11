@@ -1,0 +1,410 @@
+{% extends "base.html" %}
+{% block title %}Emergency Evacuation Center &amp; Safe Zone Analysis | NIDARS{% endblock %}
+{% block body_class %}emergency-page{% endblock %}
+{% block main_class %}emergency-main{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-3 px-lg-4 py-3" id="emergency-workspace">
+    <!-- Academic Advisory Banner -->
+    <div class="alert alert-danger d-flex align-items-center gap-3 py-2 px-3 mb-3 shadow-sm border-danger rounded-3" role="alert">
+        <span class="fs-4 flex-shrink-0" aria-hidden="true">🚨</span>
+        <div class="small">
+            <strong>RESEARCH &amp; PROTOTYPE ADVISORY:</strong> Emergency Evacuation Center is an academic decision-support prototype. Risk assessments, safe zone rankings, and evacuation corridors are model-assisted estimates. <strong>For active emergencies, always follow official government instructions from NDRF (1078), Police (112), State Disaster Management Authorities (1070), and local administration.</strong>
+        </div>
+    </div>
+
+    <!-- Header & Action Bar -->
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-3">
+        <div>
+            <div class="d-flex align-items-center gap-2 mb-1">
+                <span class="badge bg-danger text-uppercase px-2 py-1" style="font-size: 0.72rem; letter-spacing: 0.06em;">Emergency Mode • Real-Time Decision Support</span>
+                <h1 class="h4 mb-0 text-white fw-bold">Emergency Evacuation Center</h1>
+            </div>
+            <p class="text-muted small mb-0">Emergency Mode &amp; Safe Facilities: Risk-aware evacuation routing, deterministic safe zone scoring, and authentic OpenStreetMap emergency facility discovery.</p>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+            <button type="button" id="btn-use-location" class="btn btn-sm btn-outline-danger d-flex align-items-center gap-2 shadow-sm">
+                <span class="spinner-border spinner-border-sm d-none" id="location-spinner"></span>
+                <span>📍 Use My Location</span>
+            </button>
+            <button type="button" id="btn-toggle-evacuation-mode" class="btn btn-sm btn-danger text-white d-flex align-items-center gap-2 shadow-sm fw-bold">
+                <span>🚨</span>
+                <span id="evac-mode-btn-text">Activate Evacuation Mode</span>
+            </button>
+            <a href="{{ url_for('main.route_optimizer_view') }}" class="btn btn-sm btn-outline-custom">
+                Safe Route Planner &rarr;
+            </a>
+        </div>
+    </div>
+
+    <!-- Dedicated Evacuation Mode Top HUD (Hidden by default, shown in Evacuation Mode) -->
+    <div id="evacuation-mode-hud" class="alert alert-dark border-danger bg-danger bg-opacity-10 p-3 mb-3 d-none rounded-3 shadow-lg">
+        <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-2 pb-2 border-bottom border-danger border-opacity-25">
+            <div class="d-flex align-items-center gap-2">
+                <span class="fs-4 animate-pulse">🚨</span>
+                <div>
+                    <h5 class="mb-0 text-white fw-bold tracking-wide">ACTIVE EVACUATION MODE</h5>
+                    <span class="small text-danger-emphasis">Streamlined Emergency Decision Interface • Maximum Contrast</span>
+                </div>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+                <button type="button" class="btn btn-sm btn-success fw-bold" id="btn-hud-show-route">
+                    🧭 SHOW ROUTE
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-light" id="btn-hud-exit-mode">
+                    ✖ EXIT EVACUATION MODE
+                </button>
+            </div>
+        </div>
+        <div class="row g-2 text-center">
+            <div class="col-6 col-md-3">
+                <div class="bg-black bg-opacity-50 p-2 rounded border border-secondary-subtle">
+                    <div class="text-secondary small">Current Hazard Risk</div>
+                    <div class="fw-bold fs-5 text-danger" id="hud-risk-level">--</div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="bg-black bg-opacity-50 p-2 rounded border border-secondary-subtle">
+                    <div class="text-secondary small">Recommended Destination</div>
+                    <div class="fw-bold fs-6 text-success text-truncate" id="hud-dest-name">--</div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="bg-black bg-opacity-50 p-2 rounded border border-secondary-subtle">
+                    <div class="text-secondary small">Corridor Distance &amp; ETA</div>
+                    <div class="fw-bold fs-5 text-info" id="hud-dist-eta">-- km / -- min</div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="bg-black bg-opacity-50 p-2 rounded border border-secondary-subtle">
+                    <div class="text-secondary small">Route Hazard Exposure</div>
+                    <div class="fw-bold fs-5 text-warning" id="hud-route-risk">--</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Coordinates & Evacuation Controls Panel -->
+    <div class="command-panel p-3 mb-3">
+        <form id="evacuation-form" class="row g-2 align-items-end">
+            <div class="col-md-3 col-lg-2">
+                <label for="user_lat" class="form-label text-muted small mb-1">Your Latitude (°N)</label>
+                <input type="number" step="any" id="user_lat" class="form-control form-control-sm bg-dark text-white border-secondary" placeholder="e.g. 31.1048" value="31.1048" required>
+            </div>
+            <div class="col-md-3 col-lg-2">
+                <label for="user_lon" class="form-label text-muted small mb-1">Your Longitude (°E)</label>
+                <input type="number" step="any" id="user_lon" class="form-control form-control-sm bg-dark text-white border-secondary" placeholder="e.g. 77.1734" value="77.1734" required>
+            </div>
+            <div class="col-md-2 col-lg-2">
+                <label for="search_radius" class="form-label text-muted small mb-1">Search Radius</label>
+                <select id="search_radius" class="form-select form-select-sm bg-dark text-white border-secondary">
+                    <option value="5">5 km</option>
+                    <option value="10">10 km</option>
+                    <option value="15">15 km</option>
+                    <option value="25" selected>25 km (Default)</option>
+                    <option value="50">50 km</option>
+                </select>
+            </div>
+            <div class="col-md-4 col-lg-3">
+                <label class="form-label text-muted small mb-1">Facility Types</label>
+                <div class="d-flex gap-2 align-items-center">
+                    <div class="form-check form-check-inline m-0">
+                        <input class="form-check-input fac-type-check" type="checkbox" id="chk-shelter" value="shelter" checked>
+                        <label class="form-check-label small text-white" for="chk-shelter">Shelter</label>
+                    </div>
+                    <div class="form-check form-check-inline m-0">
+                        <input class="form-check-input fac-type-check" type="checkbox" id="chk-hospital" value="hospital" checked>
+                        <label class="form-check-label small text-white" for="chk-hospital">Hospital</label>
+                    </div>
+                    <div class="form-check form-check-inline m-0">
+                        <input class="form-check-input fac-type-check" type="checkbox" id="chk-police" value="police" checked>
+                        <label class="form-check-label small text-white" for="chk-police">Police</label>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-12 col-lg-3 d-flex gap-2">
+                <button type="submit" id="btn-evacuate" class="btn btn-sm btn-danger flex-grow-1 fw-bold shadow-sm d-flex align-items-center justify-content-center gap-2">
+                    <span class="spinner-border spinner-border-sm d-none" id="evac-spinner"></span>
+                    <span>🚨 ANALYZE EVACUATION</span>
+                </button>
+                <button type="button" id="btn-refresh-risk" class="btn btn-sm btn-outline-custom" title="Refresh local hazard risk">
+                    <span>⚡</span>
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Live Risk Assessment KPI Cards Row (PART 10) -->
+    <div class="row g-3 mb-3" id="risk-assessment-cards">
+        <div class="col-6 col-md-3">
+            <div class="metric-card accent p-3 text-center h-100">
+                <div class="metric-label mb-1">Flood Risk</div>
+                <div class="metric-number text-info" id="stat-flood-prob">--%</div>
+                <div class="small text-muted" id="stat-flood-label">Model Estimate</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="metric-card warning p-3 text-center h-100">
+                <div class="metric-label mb-1">Landslide Risk</div>
+                <div class="metric-number text-warning" id="stat-landslide-prob">--%</div>
+                <div class="small text-muted" id="stat-landslide-label">Model Estimate</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="metric-card primary p-3 text-center h-100">
+                <div class="metric-label mb-1">Composite Hazard</div>
+                <div class="metric-number text-light" id="stat-combined-risk">--%</div>
+                <div class="small text-muted" id="stat-nearest-station">Station: Shimla (~0.0 km)</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="metric-card danger p-3 text-center h-100">
+                <div class="metric-label mb-1">Risk Classification</div>
+                <div class="metric-number" id="stat-risk-level"><span class="badge bg-secondary">UNKNOWN</span></div>
+                <div class="small text-muted" id="stat-risk-desc">Awaiting Coordinates</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recommended Safe Zone Showcase Card (PART 8 & 11) -->
+    <div id="recommended-safezone-hero" class="card border-success border-2 bg-dark bg-opacity-75 p-3 mb-3 shadow-lg d-none" style="border-radius: 12px; background: linear-gradient(135deg, rgba(25, 135, 84, 0.15) 0%, rgba(13, 202, 240, 0.08) 100%);">
+        <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 pb-2 mb-2 border-bottom border-success border-opacity-25">
+            <div class="d-flex align-items-center gap-2">
+                <span class="badge bg-success text-uppercase px-2 py-1 fs-6">🛡️ RECOMMENDED SAFE ZONE</span>
+                <span class="badge bg-dark border border-success text-success text-uppercase" id="hero-fac-type">SHELTER</span>
+            </div>
+            <div class="small text-muted">
+                Safe Zone Score: <strong class="text-success fs-6" id="hero-fac-score">0.18</strong> <span class="text-secondary">(Lower = Safer)</span>
+            </div>
+        </div>
+        <div class="row g-3 align-items-center">
+            <div class="col-lg-5">
+                <h4 class="text-white fw-bold mb-1" id="hero-fac-name">Shimla Municipal Evacuation Shelter</h4>
+                <div class="small text-muted mb-2" id="hero-fac-addr">📍 Town Hall, Ridge, Shimla</div>
+                <div class="p-2 rounded bg-black bg-opacity-40 border border-secondary-subtle">
+                    <strong class="text-info small d-block mb-1">WHY SELECTED:</strong>
+                    <p class="small text-light mb-0" id="hero-fac-reason">Lowest combined destination risk (LOW) and safest road transit corridor.</p>
+                </div>
+            </div>
+            <div class="col-lg-4">
+                <div class="row g-2 text-center">
+                    <div class="col-6">
+                        <div class="p-2 rounded bg-dark border border-secondary-subtle">
+                            <span class="small text-muted d-block">Distance</span>
+                            <strong class="fs-5 text-white" id="hero-fac-dist">-- km</strong>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="p-2 rounded bg-dark border border-secondary-subtle">
+                            <span class="small text-muted d-block">Est. Travel Time</span>
+                            <strong class="fs-5 text-white" id="hero-fac-eta">-- min</strong>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="p-2 rounded bg-dark border border-secondary-subtle">
+                            <span class="small text-muted d-block">Destination Risk</span>
+                            <strong class="fs-6 text-success" id="hero-fac-dest-risk">LOW</strong>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="p-2 rounded bg-dark border border-secondary-subtle">
+                            <span class="small text-muted d-block">Corridor Risk</span>
+                            <strong class="fs-6 text-success" id="hero-fac-route-risk">LOW</strong>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-3 d-flex flex-column gap-2">
+                <button type="button" class="btn btn-success fw-bold py-2 shadow-sm d-flex align-items-center justify-content-center gap-2" id="btn-start-hero-route">
+                    <span>🚨</span> START EVACUATION ROUTE
+                </button>
+                <button type="button" class="btn btn-outline-info btn-sm" id="btn-details-hero-route">
+                    📋 View Facility Details
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Workspace: Map & Facility Directory (PART 12) -->
+    <div class="row g-3">
+        <!-- Leaflet GIS Map Container -->
+        <div class="col-lg-7 col-xl-8">
+            <div class="command-panel p-0 overflow-hidden position-relative h-100" style="min-height: 540px;">
+                <div class="p-2 bg-dark bg-opacity-75 border-bottom border-secondary d-flex align-items-center justify-content-between flex-wrap gap-2">
+                    <div class="d-flex align-items-center gap-2">
+                        <strong class="small text-uppercase tracking-wider text-white">🗺️ Evacuation Corridor GIS Map</strong>
+                        <span id="route-status-badge" class="badge bg-secondary">Awaiting Analysis</span>
+                    </div>
+                    <div class="d-flex align-items-center gap-1">
+                        <button type="button" class="btn btn-xs btn-outline-secondary py-0 px-2" id="btn-center-user" title="Center map on origin">Origin</button>
+                        <button type="button" class="btn btn-xs btn-outline-secondary py-0 px-2" id="btn-fit-all" title="Fit all safe zones">Fit All</button>
+                    </div>
+                </div>
+                
+                <div id="emergency-map" style="width: 100%; height: 500px; background: #070d18;"></div>
+                
+                <!-- Floating Map Legend (PART 12) -->
+                <div class="floating-map-legend" id="emergency-map-legend" style="bottom: 12px; left: 12px; right: auto; max-width: 260px;">
+                    <div class="fw-bold mb-1 d-flex justify-content-between align-items-center" style="font-size: 0.72rem;">
+                        <span>EVACUATION MAP SYMBOLS</span>
+                        <span class="badge bg-dark border border-secondary" style="font-size: 0.6rem;">LEAFLET</span>
+                    </div>
+                    <div class="d-flex flex-column gap-1" style="font-size: 0.7rem;">
+                        <div><span class="badge bg-danger text-white me-1">📍</span> Current Location (Origin)</div>
+                        <div><span class="badge bg-success text-white me-1">🛡️</span> Recommended Safe Zone</div>
+                        <div><span class="badge bg-warning text-dark me-1">🟡</span> Alternative Safe Destination</div>
+                        <div><span style="display:inline-block; width:16px; height:4px; background:#0dcaf0; vertical-align:middle;" class="me-1 rounded"></span> Recommended Evacuation Route</div>
+                        <div><span style="display:inline-block; width:16px; height:2px; background:#adb5bd; vertical-align:middle; border-top: 2px dashed #6c757d;" class="me-1"></span> Alternative Routes</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Safe Destinations Directory / Ranked Alternative Cards (PART 8 & 11) -->
+        <div class="col-lg-5 col-xl-4">
+            <div class="command-panel p-0 overflow-hidden d-flex flex-column h-100" style="min-height: 540px; max-height: 560px;">
+                <div class="p-2 bg-dark bg-opacity-75 border-bottom border-secondary d-flex align-items-center justify-content-between">
+                    <strong class="small text-uppercase tracking-wider text-white">Ranked Safe Destinations</strong>
+                    <span id="facility-count-badge" class="badge bg-info">0 Found</span>
+                </div>
+
+                <!-- Facilities Scrollable List -->
+                <div class="p-2 overflow-auto flex-grow-1" id="facility-list-container">
+                    <!-- Placeholder State -->
+                    <div id="facility-state-message" class="text-center py-5 text-muted">
+                        <span class="fs-1 d-block mb-2">📍</span>
+                        <p class="mb-1">Click <strong>Analyze Evacuation</strong> or enter coordinates.</p>
+                        <small class="text-secondary">Safe shelters, hospitals, and police stations will be ranked by risk, distance, and route exposure.</small>
+                    </div>
+
+                    <!-- Facility Cards Render Here -->
+                    <div id="facility-items" class="d-flex flex-column gap-2"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Active Route Schematic Visualization (PART 13) -->
+    <div class="command-panel p-3 border-info mt-3 d-none rounded-3" id="active-route-card">
+        <div class="d-flex align-items-center justify-content-between pb-2 mb-2 border-bottom border-info border-opacity-25">
+            <strong class="small text-info text-uppercase tracking-wider">🚨 Active Evacuation Route Analysis</strong>
+            <button type="button" class="btn-close btn-close-white btn-sm" id="btn-close-route-card" aria-label="Close"></button>
+        </div>
+        
+        <!-- Schematic Flow Diagram (PART 13) -->
+        <div class="d-flex align-items-center justify-content-center gap-3 my-2 p-2 bg-black bg-opacity-50 rounded border border-secondary-subtle flex-wrap">
+            <div class="text-center">
+                <span class="badge bg-danger mb-1">📍 ORIGIN</span>
+                <div class="small text-white fw-bold" id="flow-origin-coords">Lat / Lon</div>
+            </div>
+            <div class="d-flex align-items-center gap-1 text-info">
+                <span>━━━━▶</span>
+                <span class="badge bg-info bg-opacity-25 text-info border border-info" id="flow-corridor-badge">Safe Evacuation Route</span>
+                <span>▶━━━━</span>
+            </div>
+            <div class="text-center">
+                <span class="badge bg-success mb-1" id="flow-dest-badge">🛡️ SAFE DESTINATION</span>
+                <div class="small text-white fw-bold" id="flow-dest-name">Destination Facility</div>
+            </div>
+        </div>
+
+        <div class="row g-3 align-items-center mt-1">
+            <div class="col-md-2 col-6">
+                <div class="small text-muted">Road Distance</div>
+                <div class="fw-bold text-light fs-5" id="route-metric-dist">-- km</div>
+            </div>
+            <div class="col-md-2 col-6">
+                <div class="small text-muted">Estimated ETA</div>
+                <div class="fw-bold text-light fs-5" id="route-metric-dur">-- min</div>
+            </div>
+            <div class="col-md-2 col-6">
+                <div class="small text-muted">Corridor Risk</div>
+                <div class="fw-bold fs-5" id="route-metric-risk">--</div>
+            </div>
+            <div class="col-md-2 col-6">
+                <div class="small text-muted">Flood Exposure</div>
+                <div class="fw-bold fs-5 text-info" id="route-metric-flood">--</div>
+            </div>
+            <div class="col-md-2 col-6">
+                <div class="small text-muted">Landslide Exposure</div>
+                <div class="fw-bold fs-5 text-warning" id="route-metric-landslide">--</div>
+            </div>
+            <div class="col-md-2 col-6">
+                <div class="small text-muted">Evacuation Score</div>
+                <div class="fw-bold fs-5 text-success" id="route-metric-score">--</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Safety Warnings Section (PART 16) -->
+    <div class="row g-2 mt-3">
+        <div class="col-md-4">
+            <div class="p-2 rounded bg-dark border border-secondary text-secondary small">
+                ⚠️ <strong>Facility Availability:</strong> Emergency shelter beds and hospital capacity vary in real time. Confirm via local dispatch before transit.
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="p-2 rounded bg-dark border border-secondary text-secondary small">
+                ⚠️ <strong>Road Corridor Notice:</strong> Road conditions may change rapidly due to flash floods or debris. Follow official roadblock instructions.
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="p-2 rounded bg-dark border border-secondary text-secondary small">
+                ⚠️ <strong>Decision Support:</strong> NIDARS is a research prototype. Follow National Disaster Management Authority (NDMA) alerts.
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Authentic Facility Details Modal (PART 15) -->
+<div class="modal fade" id="facilityDetailModal" tabindex="-1" aria-labelledby="facilityDetailModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content bg-dark text-white border-secondary">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title d-flex align-items-center gap-2" id="facilityDetailModalLabel">
+                    <span id="modal-fac-icon">🏥</span>
+                    <span id="modal-fac-name">Facility Details</span>
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3 d-flex justify-content-between align-items-center">
+                    <span class="badge bg-primary text-uppercase" id="modal-fac-type">Hospital</span>
+                    <span class="badge bg-secondary" id="modal-fac-source">OpenStreetMap</span>
+                </div>
+                <ul class="list-group list-group-flush bg-transparent mb-3">
+                    <li class="list-group-item bg-transparent text-white-50 border-secondary px-0">
+                        <strong class="text-white">Address:</strong> <span id="modal-fac-address">--</span>
+                    </li>
+                    <li class="list-group-item bg-transparent text-white-50 border-secondary px-0">
+                        <strong class="text-white">Phone:</strong> <span id="modal-fac-phone">--</span>
+                    </li>
+                    <li class="list-group-item bg-transparent text-white-50 border-secondary px-0">
+                        <strong class="text-white">Opening Hours:</strong> <span id="modal-fac-hours">--</span>
+                    </li>
+                    <li class="list-group-item bg-transparent text-white-50 border-secondary px-0">
+                        <strong class="text-white">Coordinates:</strong> <span id="modal-fac-coords">--</span>
+                    </li>
+                    <li class="list-group-item bg-transparent text-white-50 border-secondary px-0">
+                        <strong class="text-white">Destination Hazard Risk:</strong> <span id="modal-fac-risk">--</span>
+                    </li>
+                    <li class="list-group-item bg-transparent text-white-50 border-secondary px-0">
+                        <strong class="text-white">Safe Zone Score:</strong> <span id="modal-fac-score" class="text-success fw-bold">--</span>
+                    </li>
+                </ul>
+                <div class="alert alert-secondary py-1 px-2 small mb-0 border-0 bg-opacity-25">
+                    ℹ️ Only verified OpenStreetMap data attributes are presented. No values are fabricated.
+                </div>
+            </div>
+            <div class="modal-footer border-secondary">
+                <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-sm btn-success" id="btn-modal-route-here">Route to this Destination</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{{ url_for('static', filename='js/emergency.js') }}"></script>
+{% endblock %}

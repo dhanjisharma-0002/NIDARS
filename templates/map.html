@@ -1,0 +1,403 @@
+{% extends "base.html" %}
+{% block title %}Advanced GIS Disaster Intelligence Command | NIDARS{% endblock %}
+{% block body_class %}map-page{% endblock %}
+{% block main_class %}map-main{% endblock %}
+
+{% block extra_head %}
+<!-- Leaflet Heatmap Plugin -->
+<script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="map-command-layout">
+    <!-- Left Command Sidebar -->
+    <aside class="map-sidebar p-3 d-flex flex-column justify-content-between" id="map-sidebar">
+        <div class="sidebar-scrollable-content">
+            <!-- Sidebar Header & Refresh -->
+            <div class="d-flex align-items-center justify-content-between mb-3 pb-2 border-bottom border-secondary-subtle">
+                <div class="d-flex align-items-center gap-2">
+                    <div class="metric-icon-box bg-primary bg-opacity-20 text-info" style="width: 34px; height: 34px; font-size: 1.1rem;">
+                        <span>🗺️</span>
+                    </div>
+                    <div>
+                        <h1 class="h6 mb-0 text-white fw-bold">GIS Risk Command</h1>
+                        <span class="small text-muted" style="font-size: 0.72rem;">Advanced Intelligence Grid</span>
+                    </div>
+                </div>
+                <div class="d-flex align-items-center gap-1">
+                    <button class="btn btn-xs btn-outline-custom" id="refresh-map-btn" title="Refresh Live Spatial Layers">
+                        <span>&#x21bb;</span>
+                    </button>
+                    <button class="btn btn-xs btn-outline-custom d-lg-none" id="toggle-sidebar-btn" title="Collapse Sidebar">
+                        <span>✕</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Hazard Model Selection -->
+            <div class="mb-3">
+                <label class="form-label text-uppercase tracking-wider fw-bold text-muted" style="font-size: 0.72rem;" for="hazard-mode-select">Hazard Model Layer</label>
+                <select class="form-select form-select-sm" id="hazard-mode-select" aria-label="Select hazard model">
+                    <option value="combined" selected>🌊⛰️ Combined Joint Risk (50/50)</option>
+                    <option value="flood">🌊 Flood Risk P(flood)</option>
+                    <option value="landslide">⛰️ Landslide Risk P(landslide)</option>
+                </select>
+            </div>
+
+            <!-- Heatmap Visualization Controls -->
+            <div class="card bg-surface border-secondary-subtle p-2 mb-3">
+                <div class="d-flex align-items-center justify-content-between mb-2">
+                    <span class="small fw-bold text-light d-flex align-items-center gap-1">
+                        <span>🔥</span> ML Hazard Heatmap
+                    </span>
+                    <div class="form-check form-switch m-0">
+                        <input class="form-check-input" type="checkbox" role="switch" id="toggle-heatmap-switch">
+                    </div>
+                </div>
+                <div id="heatmap-options-box" style="display: none;">
+                    <div class="d-flex gap-1 mb-1">
+                        <button class="btn btn-xs btn-outline-custom flex-fill heatmap-mode-btn active" data-mode="combined">Combined</button>
+                        <button class="btn btn-xs btn-outline-custom flex-fill heatmap-mode-btn" data-mode="flood">Flood</button>
+                        <button class="btn btn-xs btn-outline-custom flex-fill heatmap-mode-btn" data-mode="landslide">Landslide</button>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center small text-muted mt-1">
+                        <span style="font-size: 0.7rem;">Intensity Radius:</span>
+                        <input type="range" class="form-range w-50" id="heatmap-radius-slider" min="15" max="60" value="32">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Layer Control Switchboard (10 Layers) -->
+            <div class="mb-3">
+                <label class="form-label text-uppercase tracking-wider fw-bold text-muted d-flex justify-content-between align-items-center" style="font-size: 0.72rem;">
+                    <span>Toggleable GIS Layers</span>
+                    <span class="badge bg-primary bg-opacity-25 text-info" id="active-layers-badge" style="font-size: 0.65rem;">Active: 4</span>
+                </label>
+                <div class="gis-layer-switches p-2 rounded bg-surface border border-secondary-subtle d-flex flex-column gap-2">
+                    <!-- Layer 1: Combined Risk -->
+                    <div class="d-flex align-items-center justify-content-between">
+                        <span class="small d-flex align-items-center gap-2">
+                            <span class="layer-dot" style="background: #a855f7;"></span>
+                            <span>1. Combined Risk Points</span>
+                        </span>
+                        <div class="form-check form-switch m-0">
+                            <input class="form-check-input layer-toggle" type="checkbox" role="switch" data-layer="combined_risk" checked>
+                        </div>
+                    </div>
+                    <!-- Layer 2: Flood Risk -->
+                    <div class="d-flex align-items-center justify-content-between">
+                        <span class="small d-flex align-items-center gap-2">
+                            <span class="layer-dot" style="background: #06b6d4;"></span>
+                            <span>2. Flood Risk Points</span>
+                        </span>
+                        <div class="form-check form-switch m-0">
+                            <input class="form-check-input layer-toggle" type="checkbox" role="switch" data-layer="flood_risk">
+                        </div>
+                    </div>
+                    <!-- Layer 3: Landslide Risk -->
+                    <div class="d-flex align-items-center justify-content-between">
+                        <span class="small d-flex align-items-center gap-2">
+                            <span class="layer-dot" style="background: #f59e0b;"></span>
+                            <span>3. Landslide Risk Points</span>
+                        </span>
+                        <div class="form-check form-switch m-0">
+                            <input class="form-check-input layer-toggle" type="checkbox" role="switch" data-layer="landslide_risk">
+                        </div>
+                    </div>
+                    <!-- Layer 4: Weather Stations -->
+                    <div class="d-flex align-items-center justify-content-between">
+                        <span class="small d-flex align-items-center gap-2">
+                            <span>🌦️</span>
+                            <span>4. Weather Stations (64)</span>
+                        </span>
+                        <div class="form-check form-switch m-0">
+                            <input class="form-check-input layer-toggle" type="checkbox" role="switch" data-layer="weather_stations" checked>
+                        </div>
+                    </div>
+                    <!-- Layer 5: Hospitals -->
+                    <div class="d-flex align-items-center justify-content-between">
+                        <span class="small d-flex align-items-center gap-2">
+                            <span>🏥</span>
+                            <span>5. Hospitals &amp; Clinics</span>
+                        </span>
+                        <div class="form-check form-switch m-0">
+                            <input class="form-check-input layer-toggle" type="checkbox" role="switch" data-layer="hospitals" checked>
+                        </div>
+                    </div>
+                    <!-- Layer 6: Police Stations -->
+                    <div class="d-flex align-items-center justify-content-between">
+                        <span class="small d-flex align-items-center gap-2">
+                            <span>🚓</span>
+                            <span>6. Police Stations</span>
+                        </span>
+                        <div class="form-check form-switch m-0">
+                            <input class="form-check-input layer-toggle" type="checkbox" role="switch" data-layer="police">
+                        </div>
+                    </div>
+                    <!-- Layer 7: Relief Shelters -->
+                    <div class="d-flex align-items-center justify-content-between">
+                        <span class="small d-flex align-items-center gap-2">
+                            <span>🏠</span>
+                            <span>7. Relief Shelters</span>
+                        </span>
+                        <div class="form-check form-switch m-0">
+                            <input class="form-check-input layer-toggle" type="checkbox" role="switch" data-layer="shelters">
+                        </div>
+                    </div>
+                    <!-- Layer 8: Safe Route Planner Overlay -->
+                    <div class="d-flex align-items-center justify-content-between">
+                        <span class="small d-flex align-items-center gap-2">
+                            <span>🛣️</span>
+                            <span>8. Safe Route Layer</span>
+                        </span>
+                        <div class="form-check form-switch m-0">
+                            <input class="form-check-input layer-toggle" type="checkbox" role="switch" data-layer="route">
+                        </div>
+                    </div>
+                    <!-- Layer 9: District Boundaries -->
+                    <div class="d-flex align-items-center justify-content-between">
+                        <span class="small d-flex align-items-center gap-2">
+                            <span>🗺️</span>
+                            <span>9. District &amp; State Bounds</span>
+                        </span>
+                        <div class="form-check form-switch m-0">
+                            <input class="form-check-input layer-toggle" type="checkbox" role="switch" data-layer="district_boundaries" checked>
+                        </div>
+                    </div>
+                    <!-- Layer 10: River / Waterbody Layer -->
+                    <div class="d-flex align-items-center justify-content-between">
+                        <span class="small d-flex align-items-center gap-2">
+                            <span>🌊</span>
+                            <span>10. Major Rivers &amp; Basins</span>
+                        </span>
+                        <div class="form-check form-switch m-0">
+                            <input class="form-check-input layer-toggle" type="checkbox" role="switch" data-layer="rivers" checked>
+                        </div>
+                    </div>
+                    <!-- Layer 11: Citizen Incident Reports (Phase 15) -->
+                    <div class="d-flex align-items-center justify-content-between">
+                        <span class="small d-flex align-items-center gap-2">
+                            <span>📢</span>
+                            <span>11. Citizen Incidents</span>
+                        </span>
+                        <div class="form-check form-switch m-0">
+                            <input class="form-check-input layer-toggle" type="checkbox" role="switch" data-layer="citizen_incidents" checked>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Geographic Filters Section -->
+            <div class="mb-3">
+                <label class="form-label text-uppercase tracking-wider fw-bold text-muted" style="font-size: 0.72rem;">Geographic Filters</label>
+                <!-- State Selector -->
+                <div class="mb-2">
+                    <select class="form-select form-select-sm" id="state-filter-select" aria-label="Filter by state">
+                        <option value="ALL" selected>All States (JK, HP, UP, BR)</option>
+                        <option value="JK">Jammu &amp; Kashmir (JK)</option>
+                        <option value="HP">Himachal Pradesh (HP)</option>
+                        <option value="UP">Uttar Pradesh (UP)</option>
+                        <option value="BR">Bihar (BR)</option>
+                    </select>
+                </div>
+                <!-- Dynamic District Selector -->
+                <div class="mb-2">
+                    <select class="form-select form-select-sm" id="district-filter-select" aria-label="Filter by district">
+                        <option value="ALL" selected>All Districts</option>
+                    </select>
+                </div>
+                <!-- Station Quick Jump -->
+                <div class="mb-2">
+                    <select class="form-select form-select-sm" id="station-jump-select" aria-label="Jump to specific station">
+                        <option value="" selected>Jump to Station...</option>
+                    </select>
+                </div>
+                <!-- Search Input -->
+                <div class="input-group input-group-sm">
+                    <span class="input-group-text">🔍</span>
+                    <input type="text" class="form-control" id="station-search-input" placeholder="Search station, district, facility..." aria-label="Search station">
+                    <button class="btn btn-outline-secondary" id="clear-search-btn" type="button" title="Clear Search">✕</button>
+                </div>
+            </div>
+
+            <!-- Risk Level Filter Buttons -->
+            <div class="mb-3">
+                <label class="form-label text-uppercase tracking-wider fw-bold text-muted d-block mb-1" style="font-size: 0.72rem;">Risk Level Filter</label>
+                <div class="d-flex flex-wrap gap-1">
+                    <button class="btn btn-xs btn-outline-secondary risk-filter-btn active" data-level="ALL">All (64)</button>
+                    <button class="btn btn-xs btn-outline-success risk-filter-btn" data-level="LOW">Low</button>
+                    <button class="btn btn-xs btn-outline-warning risk-filter-btn" data-level="MODERATE">Moderate</button>
+                    <button class="btn btn-xs btn-outline-danger risk-filter-btn" data-level="HIGH">High</button>
+                    <button class="btn btn-xs btn-outline-purple risk-filter-btn" data-level="CRITICAL">Critical</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar Action Footer -->
+        <div class="pt-2 border-top border-secondary-subtle">
+            <div class="d-grid gap-2">
+                <a href="{{ url_for('main.route_optimizer_view') }}" class="btn btn-sm btn-primary">
+                    <span>🛣️</span> Safe Route Planner &rarr;
+                </a>
+                <a href="{{ url_for('main.emergency_view') }}" class="btn btn-sm btn-danger-emergency">
+                    <span>🚨</span> Emergency Assistance
+                </a>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Right Map Viewport & Controls -->
+    <div class="map-viewport position-relative flex-grow-1">
+        <!-- Top HUD Statistics Bar -->
+        <div class="gis-hud-bar d-flex flex-wrap align-items-center justify-content-between px-3 py-2 border-bottom border-secondary-subtle z-3 position-relative">
+            <div class="d-flex align-items-center gap-3 flex-wrap">
+                <!-- Monitored Stations Counter -->
+                <div class="hud-stat-item d-flex align-items-center gap-2">
+                    <span class="hud-icon text-info">📡</span>
+                    <div>
+                        <div class="hud-label">Monitored Stations</div>
+                        <strong class="hud-val text-white" id="stat-monitored-stations">64</strong>
+                    </div>
+                </div>
+                <div class="hud-divider"></div>
+                <!-- Low Risk Count -->
+                <div class="hud-stat-item d-flex align-items-center gap-2">
+                    <span class="hud-dot bg-success"></span>
+                    <div>
+                        <div class="hud-label">Low Risk</div>
+                        <strong class="hud-val text-success" id="stat-low-count">--</strong>
+                    </div>
+                </div>
+                <!-- Moderate Risk Count -->
+                <div class="hud-stat-item d-flex align-items-center gap-2">
+                    <span class="hud-dot bg-warning"></span>
+                    <div>
+                        <div class="hud-label">Moderate</div>
+                        <strong class="hud-val text-warning" id="stat-mod-count">--</strong>
+                    </div>
+                </div>
+                <!-- High Risk Count -->
+                <div class="hud-stat-item d-flex align-items-center gap-2">
+                    <span class="hud-dot bg-danger"></span>
+                    <div>
+                        <div class="hud-label">High Risk</div>
+                        <strong class="hud-val text-danger" id="stat-high-count">--</strong>
+                    </div>
+                </div>
+                <!-- Critical Risk Count -->
+                <div class="hud-stat-item d-flex align-items-center gap-2">
+                    <span class="hud-dot bg-purple" style="background-color: #a855f7;"></span>
+                    <div>
+                        <div class="hud-label">Critical</div>
+                        <strong class="hud-val" style="color: #c084fc;" id="stat-crit-count">--</strong>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Top HUD Action Tools -->
+            <div class="d-flex align-items-center gap-2 mt-1 mt-md-0">
+                <button class="btn btn-xs btn-outline-info d-flex align-items-center gap-1" id="locate-user-btn" title="Locate My Position via GPS">
+                    <span>🎯</span> <span class="d-none d-sm-inline">Locate Me</span>
+                </button>
+                <button class="btn btn-xs btn-outline-custom d-flex align-items-center gap-1" id="map-reset-btn" title="Reset North India View">
+                    <span>🔄</span> <span class="d-none d-sm-inline">Reset View</span>
+                </button>
+                <button class="btn btn-xs btn-outline-custom" id="map-fullscreen-btn" title="Toggle Fullscreen">
+                    <span id="fullscreen-icon">⛶</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Error & Alert Banner -->
+        <div id="map-error-banner" class="alert alert-danger mb-0 py-2 px-3 position-absolute top-0 start-50 translate-middle-x mt-5 z-3 shadow" style="display: none; max-width: 90%;"></div>
+        
+        <!-- Loading Overlay -->
+        <div id="map-loading-indicator" class="map-loading-overlay position-absolute top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center z-2" style="background: rgba(7, 13, 24, 0.7); display: none;">
+            <div class="text-center">
+                <div class="spinner-border text-info mb-2" role="status">
+                    <span class="visually-hidden">Loading spatial intelligence layers...</span>
+                </div>
+                <div class="small text-light fw-semibold" id="loading-message">Loading Spatial Intelligence...</div>
+            </div>
+        </div>
+
+        <!-- Leaflet Map Container -->
+        <div id="map" data-gis-map="true" role="application" aria-label="North India Disaster Risk Map"></div>
+
+        <!-- Floating, Draggable & Resizable Map Legend Card -->
+        <div class="floating-map-legend" id="gis-floating-legend" role="region" aria-label="GIS Disaster Legend">
+            <!-- Dedicated Draggable Header -->
+            <div class="gis-legend-header" id="gis-legend-header" title="Drag to move legend">
+                <div class="d-flex align-items-center gap-1">
+                    <span class="legend-drag-handle" aria-hidden="true" title="Drag to move">⠿</span>
+                    <strong class="text-uppercase tracking-wider legend-title" style="font-size: 0.76rem;">GIS Legend</strong>
+                    <span class="badge bg-secondary badge-osm-ml" style="font-size: 0.62rem;">OSM &bull; ML</span>
+                </div>
+                <!-- Control Buttons: Resize [ A− ] [ 100% ] [ A+ ] & Collapse [ ▲ ] -->
+                <div class="legend-header-controls d-flex align-items-center gap-1">
+                    <button type="button" class="btn-legend-ctrl" id="legend-decrease-btn" aria-label="Decrease legend size" title="Decrease size (A−)">
+                        <span>A−</span>
+                    </button>
+                    <button type="button" class="btn-legend-ctrl" id="legend-reset-btn" aria-label="Reset legend size" title="Reset size (100%)">
+                        <span id="legend-scale-label">100%</span>
+                    </button>
+                    <button type="button" class="btn-legend-ctrl" id="legend-increase-btn" aria-label="Increase legend size" title="Increase size (A+)">
+                        <span>A+</span>
+                    </button>
+                    <button type="button" class="btn-legend-ctrl" id="legend-collapse-btn" aria-label="Collapse legend" title="Collapse / Expand legend">
+                        <span id="legend-collapse-icon">▲</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Expandable / Collapsible Legend Body -->
+            <div class="gis-legend-body" id="gis-legend-body">
+                <p id="legend-hazard-subtitle" class="text-muted small mb-2" style="font-size: 0.72rem;">Combined Joint Risk (50% Flood + 50% Landslide)</p>
+                
+                <!-- Risk Color Bands -->
+                <div class="d-flex flex-column gap-1 mb-2">
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="legend-swatch" style="background: #22c55e;"></span>
+                        <span>Low Risk (<span class="text-muted">&lt; 0.25</span>)</span>
+                    </div>
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="legend-swatch" style="background: #f59e0b;"></span>
+                        <span>Moderate Risk (<span class="text-muted">0.25 &ndash; 0.50</span>)</span>
+                    </div>
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="legend-swatch" style="background: #ef4444;"></span>
+                        <span>High Risk (<span class="text-muted">0.50 &ndash; 0.75</span>)</span>
+                    </div>
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="legend-swatch" style="background: #a855f7;"></span>
+                        <span>Critical Risk (<span class="text-muted">&ge; 0.75</span>)</span>
+                    </div>
+                </div>
+
+                <!-- Layer Symbols Legend -->
+                <div class="pt-2 border-top border-secondary-subtle small text-muted d-flex flex-column gap-1">
+                    <div class="d-flex align-items-center gap-2"><span>🏥</span> <span class="text-light">Hospital / Clinic</span></div>
+                    <div class="d-flex align-items-center gap-2"><span>🚓</span> <span class="text-light">Police Station</span></div>
+                    <div class="d-flex align-items-center gap-2"><span>🏠</span> <span class="text-light">Relief Shelter</span></div>
+                    <div class="d-flex align-items-center gap-2"><span style="color:#38bdf8;">━━</span> <span class="text-light">Major River Channel</span></div>
+                    <div class="d-flex align-items-center gap-2"><span>🛡️</span> <span class="text-light">Verified Citizen Incident</span></div>
+                    <div class="d-flex align-items-center gap-2"><span>⚠️</span> <span class="text-light">User Reported (Unverified)</span></div>
+                </div>
+
+                <div id="legend-landslide-note" class="mt-2 pt-1 border-top border-secondary-subtle text-muted" style="font-size: 0.7rem; display: none;">
+                    <em>* Landslide mode applies validated thresholds: Low (&lt;0.02), Mod (0.02&ndash;0.10), High (&ge;0.10).</em>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Academic Disclaimer Footer Bar -->
+<div class="gis-disclaimer-bar bg-dark bg-opacity-75 border-top border-secondary-subtle px-3 py-1 small text-muted text-center">
+    <strong>Academic / Research Prototype:</strong> Station hazard predictions and spatial buffer overlays are computational models. Official alerts by IMD, NDMA, CWC, and GSI remain authoritative.
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{{ url_for('static', filename='js/map.js') }}"></script>
+{% endblock %}

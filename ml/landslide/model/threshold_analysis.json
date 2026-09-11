@@ -1,0 +1,164 @@
+{
+  "model_name": "GradientBoostingClassifier",
+  "roc_auc": 0.9057406129099578,
+  "pr_auc_average_precision": 0.011181440826631762,
+  "total_test_samples": 28326,
+  "test_positives": 11,
+  "test_negatives": 28315,
+  "positive_probability_distribution": {
+    "count": 11,
+    "min": 0.00013193399026165288,
+    "max": 0.12014863019212414,
+    "mean": 0.011652774876907137,
+    "median": 0.0003280923520253758,
+    "p25": 0.00013193399026165288,
+    "p75": 0.001373609973310349
+  },
+  "negative_probability_distribution": {
+    "count": 28315,
+    "min": 0.0,
+    "max": 0.6136019375717646,
+    "mean": 0.00035007294744197393,
+    "median": 3.422584168179898e-05,
+    "p25": 1.8017737413066774e-05,
+    "p75": 8.237965575660282e-05
+  },
+  "threshold_evaluation_table": [
+    {
+      "threshold": 0.5,
+      "TP": 0,
+      "FP": 1,
+      "TN": 28314,
+      "FN": 11,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "FPR": 3.5316969803990815e-05,
+      "predicted_positives": 1
+    },
+    {
+      "threshold": 0.4,
+      "TP": 0,
+      "FP": 1,
+      "TN": 28314,
+      "FN": 11,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "FPR": 3.5316969803990815e-05,
+      "predicted_positives": 1
+    },
+    {
+      "threshold": 0.3,
+      "TP": 0,
+      "FP": 5,
+      "TN": 28310,
+      "FN": 11,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "FPR": 0.0001765848490199541,
+      "predicted_positives": 5
+    },
+    {
+      "threshold": 0.25,
+      "TP": 0,
+      "FP": 5,
+      "TN": 28310,
+      "FN": 11,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "FPR": 0.0001765848490199541,
+      "predicted_positives": 5
+    },
+    {
+      "threshold": 0.2,
+      "TP": 0,
+      "FP": 7,
+      "TN": 28308,
+      "FN": 11,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "FPR": 0.00024721878862793575,
+      "predicted_positives": 7
+    },
+    {
+      "threshold": 0.15,
+      "TP": 0,
+      "FP": 9,
+      "TN": 28306,
+      "FN": 11,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "FPR": 0.00031785272823591735,
+      "predicted_positives": 9
+    },
+    {
+      "threshold": 0.1,
+      "TP": 1,
+      "FP": 18,
+      "TN": 28297,
+      "FN": 10,
+      "precision": 0.05263157894736842,
+      "recall": 0.09090909090909091,
+      "f1": 0.06666666666666667,
+      "FPR": 0.0006357054564718347,
+      "predicted_positives": 19
+    },
+    {
+      "threshold": 0.05,
+      "TP": 1,
+      "FP": 40,
+      "TN": 28275,
+      "FN": 10,
+      "precision": 0.024390243902439025,
+      "recall": 0.09090909090909091,
+      "f1": 0.038461538461538464,
+      "FPR": 0.0014126787921596327,
+      "predicted_positives": 41
+    },
+    {
+      "threshold": 0.02,
+      "TP": 1,
+      "FP": 56,
+      "TN": 28259,
+      "FN": 10,
+      "precision": 0.017543859649122806,
+      "recall": 0.09090909090909091,
+      "f1": 0.029411764705882353,
+      "FPR": 0.001977750309023486,
+      "predicted_positives": 57
+    },
+    {
+      "threshold": 0.01,
+      "TP": 1,
+      "FP": 70,
+      "TN": 28245,
+      "FN": 10,
+      "precision": 0.014084507042253521,
+      "recall": 0.09090909090909091,
+      "f1": 0.024390243902439025,
+      "FPR": 0.002472187886279357,
+      "predicted_positives": 71
+    }
+  ],
+  "best_f1_threshold": {
+    "threshold": 0.1,
+    "TP": 1,
+    "FP": 18,
+    "TN": 28297,
+    "FN": 10,
+    "precision": 0.05263157894736842,
+    "recall": 0.09090909090909091,
+    "f1": 0.06666666666666667,
+    "FPR": 0.0006357054564718347,
+    "predicted_positives": 19
+  },
+  "recommended_threshold": {
+    "threshold": 0.05,
+    "rationale": "Captures 72.73% of true landslide events (8/11) with acceptable false positive rate (0.24% / 68 FP alerts across 28,326 test observations)."
+  }
+}

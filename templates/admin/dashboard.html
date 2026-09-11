@@ -1,0 +1,245 @@
+{% extends "base.html" %}
+{% block title %}Admin Control Center &amp; Analytics | NIDARS{% endblock %}
+{% block body_class %}admin-page{% endblock %}
+{% block main_class %}admin-main{% endblock %}
+
+{% block extra_head %}
+<!-- Chart.js 4.4 -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-3 px-lg-4 py-4">
+    <!-- Header -->
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
+        <div>
+            <div class="d-flex align-items-center gap-2 mb-1">
+                <span class="badge bg-warning text-dark text-uppercase px-2 py-1" style="font-size: 0.7rem; letter-spacing: 0.05em;">SYSTEM GOVERNANCE</span>
+                <h1 class="h4 mb-0 text-white fw-bold">NIDARS Analytics &amp; Admin Control Center</h1>
+            </div>
+            <p class="text-muted small mb-0">System operational metrics, multi-hazard model inquiry distributions, emergency activity logs, and cached OSM amenity telemetry.</p>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+            <button id="btn-refresh-stats" class="btn btn-sm btn-outline-warning d-flex align-items-center gap-2">
+                <span class="spinner-border spinner-border-sm d-none" id="stats-spinner"></span>
+                <span>🔄 Refresh Live Telemetry</span>
+            </button>
+            <a href="{{ url_for('main.emergency_view') }}" class="btn btn-sm btn-danger-emergency">
+                🚨 Emergency Console &rarr;
+            </a>
+        </div>
+    </div>
+
+    <!-- KPI Metric Cards Row -->
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-md-4 col-xl-2">
+            <article class="metric-card primary p-3">
+                <div class="metric-label mb-1">Total Users</div>
+                <div class="metric-number text-white fs-3" id="stat-total-users">--</div>
+                <div class="small text-muted">Registered accounts</div>
+            </article>
+        </div>
+        <div class="col-6 col-md-4 col-xl-2">
+            <article class="metric-card accent p-3">
+                <div class="metric-label mb-1">Total Predictions</div>
+                <div class="metric-number text-info fs-3" id="stat-total-predictions">--</div>
+                <div class="small text-muted">ML Inquiries</div>
+            </article>
+        </div>
+        <div class="col-6 col-md-4 col-xl-2">
+            <article class="metric-card primary p-3">
+                <div class="metric-label mb-1">Flood Preds</div>
+                <div class="metric-number text-primary fs-3" id="stat-flood-count">--</div>
+                <div class="small text-muted">Random Forest</div>
+            </article>
+        </div>
+        <div class="col-6 col-md-4 col-xl-2">
+            <article class="metric-card warning p-3">
+                <div class="metric-label mb-1">Landslide Preds</div>
+                <div class="metric-number text-warning fs-3" id="stat-landslide-count">--</div>
+                <div class="small text-muted">Grad. Boosting</div>
+            </article>
+        </div>
+        <div class="col-6 col-md-4 col-xl-2">
+            <article class="metric-card danger p-3">
+                <div class="metric-label mb-1">Emergency Queries</div>
+                <div class="metric-number text-danger fs-3" id="stat-emergency-count">--</div>
+                <div class="small text-muted">OSM Lookups</div>
+            </article>
+        </div>
+        <div class="col-6 col-md-4 col-xl-2">
+            <article class="metric-card success p-3">
+                <div class="metric-label mb-1">Cached Facilities</div>
+                <div class="metric-number text-success fs-3" id="stat-facility-count">--</div>
+                <div class="small text-muted">OSM Amenities DB</div>
+            </article>
+        </div>
+    </div>
+
+    <!-- Hazard Alert Highlights Row -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-6">
+            <article class="command-panel p-3 border-warning">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <span class="badge bg-warning text-dark text-uppercase mb-1">HIGH RISK ACTIVITY</span>
+                        <h5 class="mb-0 text-white fw-bold">Elevated Risk Predictions</h5>
+                        <small class="text-muted">Inquiries categorized as High or Critical</small>
+                    </div>
+                    <div class="text-end">
+                        <span class="fs-2 fw-bold text-warning" id="stat-high-risk-count">--</span>
+                    </div>
+                </div>
+            </article>
+        </div>
+        <div class="col-md-6">
+            <article class="command-panel p-3 border-danger">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <span class="badge bg-danger text-uppercase mb-1">CRITICAL INCIDENTS</span>
+                        <h5 class="mb-0 text-white fw-bold">Severe Disaster Threshold Triggers</h5>
+                        <small class="text-muted">Predictions &ge; 75% Combined Multi-Hazard Score</small>
+                    </div>
+                    <div class="text-end">
+                        <span class="fs-2 fw-bold text-danger" id="stat-critical-risk-count">--</span>
+                    </div>
+                </div>
+            </article>
+        </div>
+    </div>
+
+    <!-- Analytics Charts Row (Chart.js) -->
+    <div class="row g-3 mb-4">
+        <!-- Prediction Type Breakdown -->
+        <div class="col-md-4">
+            <article class="command-panel h-100">
+                <div class="panel-header py-1 mb-3">
+                    <strong class="small text-uppercase tracking-wider">Prediction Type Breakdown</strong>
+                </div>
+                <div style="position: relative; height: 240px;">
+                    <canvas id="chart-prediction-types"></canvas>
+                </div>
+            </article>
+        </div>
+
+        <!-- Risk Level Distribution -->
+        <div class="col-md-4">
+            <article class="command-panel h-100">
+                <div class="panel-header py-1 mb-3">
+                    <strong class="small text-uppercase tracking-wider">Hazard Risk Distribution</strong>
+                </div>
+                <div style="position: relative; height: 240px;">
+                    <canvas id="chart-risk-levels"></canvas>
+                </div>
+            </article>
+        </div>
+
+        <!-- Emergency Facility Types -->
+        <div class="col-md-4">
+            <article class="command-panel h-100">
+                <div class="panel-header py-1 mb-3">
+                    <strong class="small text-uppercase tracking-wider">Cached Facility Types</strong>
+                </div>
+                <div style="position: relative; height: 240px;">
+                    <canvas id="chart-facility-types"></canvas>
+                </div>
+            </article>
+        </div>
+    </div>
+
+    <!-- Recent System Activity Tables Tabs -->
+    <div class="command-panel p-0 overflow-hidden">
+        <div class="p-2 bg-dark bg-opacity-50 border-bottom border-secondary d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <!-- Nav Tabs -->
+            <ul class="nav nav-pills" id="adminTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active btn-sm" id="tab-predictions" data-bs-toggle="tab" data-bs-target="#pane-predictions" type="button" role="tab">
+                        📊 Recent Predictions (<span id="count-badge-predictions">0</span>)
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link btn-sm" id="tab-emergency" data-bs-toggle="tab" data-bs-target="#pane-emergency" type="button" role="tab">
+                        🚨 Emergency Inquiries (<span id="count-badge-emergency">0</span>)
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link btn-sm" id="tab-facilities" data-bs-toggle="tab" data-bs-target="#pane-facilities" type="button" role="tab">
+                        🏥 Cached Facilities (<span id="count-badge-facilities">0</span>)
+                    </button>
+                </li>
+            </ul>
+
+            <span class="small text-muted me-2" id="last-updated-timestamp">Updated: Just now</span>
+        </div>
+
+        <div class="tab-content p-3" id="adminTabsContent">
+            <!-- Predictions Tab -->
+            <div class="tab-pane fade show active" id="pane-predictions" role="tabpanel">
+                <div class="table-responsive">
+                    <table class="table table-custom table-hover align-middle mb-0" id="table-predictions">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Type</th>
+                                <th>Risk Level</th>
+                                <th>Probability / Score</th>
+                                <th>Status</th>
+                                <th>Recorded At</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbody-predictions">
+                            <tr><td colspan="6" class="text-center text-muted py-4">Loading prediction records...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Emergency Requests Tab -->
+            <div class="tab-pane fade" id="pane-emergency" role="tabpanel">
+                <div class="table-responsive">
+                    <table class="table table-custom table-hover align-middle mb-0" id="table-emergency">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>User Coordinates</th>
+                                <th>Selected Amenity</th>
+                                <th>Distance</th>
+                                <th>Hazard Exposure</th>
+                                <th>Timestamp</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbody-emergency">
+                            <tr><td colspan="6" class="text-center text-muted py-4">Loading emergency inquiries...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Cached Facilities Tab -->
+            <div class="tab-pane fade" id="pane-facilities" role="tabpanel">
+                <div class="table-responsive">
+                    <table class="table table-custom table-hover align-middle mb-0" id="table-facilities">
+                        <thead>
+                            <tr>
+                                <th>OSM ID</th>
+                                <th>Facility Name</th>
+                                <th>Amenity Type</th>
+                                <th>Latitude</th>
+                                <th>Longitude</th>
+                                <th>Cached Timestamp</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbody-facilities">
+                            <tr><td colspan="6" class="text-center text-muted py-4">Loading cached facilities...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{{ url_for('static', filename='js/admin.js') }}"></script>
+{% endblock %}

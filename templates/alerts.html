@@ -1,0 +1,349 @@
+{% extends "base.html" %}
+
+{% block title %}Early Warning & Advisory System — NIDARS{% endblock %}
+
+{% block extra_css %}
+<style>
+    .alert-card {
+        background: var(--bg-card, #1e293b);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 12px;
+        transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+        position: relative;
+        overflow: hidden;
+    }
+    .alert-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+    }
+    .alert-card.level-critical {
+        border-left: 5px solid #ef4444;
+    }
+    .alert-card.level-high {
+        border-left: 5px solid #f97316;
+    }
+    .alert-card.level-moderate {
+        border-left: 5px solid #eab308;
+    }
+    .alert-card.level-low {
+        border-left: 5px solid #22c55e;
+    }
+
+    .badge-critical {
+        background: rgba(239, 68, 68, 0.15);
+        color: #ef4444;
+        border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+    .badge-high {
+        background: rgba(249, 115, 22, 0.15);
+        color: #f97316;
+        border: 1px solid rgba(249, 115, 22, 0.3);
+    }
+    .badge-moderate {
+        background: rgba(234, 179, 8, 0.15);
+        color: #eab308;
+        border: 1px solid rgba(234, 179, 8, 0.3);
+    }
+    .badge-low {
+        background: rgba(34, 197, 94, 0.15);
+        color: #22c55e;
+        border: 1px solid rgba(34, 197, 94, 0.3);
+    }
+
+    .stat-kpi-card {
+        background: var(--bg-card, #1e293b);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 12px;
+        padding: 1.25rem;
+    }
+    .stat-kpi-card .kpi-num {
+        font-size: 2rem;
+        font-weight: 700;
+        line-height: 1;
+    }
+
+    .disclaimer-banner {
+        background: rgba(239, 68, 68, 0.08);
+        border: 1px solid rgba(239, 68, 68, 0.25);
+        border-radius: 10px;
+        padding: 0.85rem 1.2rem;
+        font-size: 0.9rem;
+    }
+
+    .telemetry-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid rgba(255, 255, 255, 0.07);
+        border-radius: 6px;
+        padding: 0.25rem 0.6rem;
+        font-size: 0.8rem;
+    }
+
+    .custom-progress {
+        height: 6px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 3px;
+        overflow: hidden;
+    }
+
+    .timeline-stream {
+        position: relative;
+        padding-left: 1.5rem;
+    }
+    .timeline-stream::before {
+        content: '';
+        position: absolute;
+        left: 0.4rem;
+        top: 0.5rem;
+        bottom: 0.5rem;
+        width: 2px;
+        background: rgba(255, 255, 255, 0.1);
+    }
+    .timeline-item {
+        position: relative;
+        margin-bottom: 1.25rem;
+    }
+    .timeline-item::before {
+        content: '';
+        position: absolute;
+        left: -1.45rem;
+        top: 0.3rem;
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: var(--brand-accent, #38bdf8);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-3 px-lg-4 py-4">
+
+    <!-- Header Section -->
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
+        <div>
+            <div class="d-flex align-items-center gap-2">
+                <span class="fs-4">⚠️</span>
+                <h1 class="h3 fw-bold mb-0 text-white">AI-Based Early Warning &amp; Advisory System</h1>
+            </div>
+            <p class="text-muted small mb-0 mt-1">
+                Real-time automated risk classification and advisory synthesis from North India flood and landslide ML models.
+            </p>
+        </div>
+        <div class="d-flex gap-2">
+            <button id="btn-sync-alerts" class="btn btn-outline-secondary btn-sm d-flex align-items-center gap-1">
+                <span>🔄</span> Sync History
+            </button>
+            <button id="btn-refresh-alerts" class="btn btn-primary btn-sm d-flex align-items-center gap-1">
+                <span>⚡</span> Refresh Signals
+            </button>
+        </div>
+    </div>
+
+    <!-- Mandatory Academic Disclaimer Banner -->
+    <div class="disclaimer-banner mb-4 d-flex align-items-start gap-3">
+        <span class="fs-4 text-danger">🛡️</span>
+        <div>
+            <strong class="text-danger">Academic &amp; Research Prototype Notice:</strong>
+            <span class="text-white-50">
+                NIDARS provides an academic/research-based advisory signal and is not an official emergency warning system. Follow official government, NDRF, SDMA and local authority alerts.
+            </span>
+        </div>
+    </div>
+
+    <!-- Top KPI Summary Cards -->
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-lg-3">
+            <div class="stat-kpi-card">
+                <div class="d-flex justify-content-between align-items-center text-muted small mb-2">
+                    <span>Critical Warnings</span>
+                    <span class="badge badge-critical px-2 py-1">P &ge; 75% / 25%</span>
+                </div>
+                <div id="kpi-critical" class="kpi-num text-danger">0</div>
+                <div class="small text-muted mt-1">Severe intervention zone</div>
+            </div>
+        </div>
+        <div class="col-6 col-lg-3">
+            <div class="stat-kpi-card">
+                <div class="d-flex justify-content-between align-items-center text-muted small mb-2">
+                    <span>High Risk Advisories</span>
+                    <span class="badge badge-high px-2 py-1">Warning Band</span>
+                </div>
+                <div id="kpi-high" class="kpi-num text-warning">0</div>
+                <div class="small text-muted mt-1">Heightened vigilance</div>
+            </div>
+        </div>
+        <div class="col-6 col-lg-3">
+            <div class="stat-kpi-card">
+                <div class="d-flex justify-content-between align-items-center text-muted small mb-2">
+                    <span>Moderate Advisories</span>
+                    <span class="badge badge-moderate px-2 py-1">Advisory Band</span>
+                </div>
+                <div id="kpi-moderate" class="kpi-num" style="color: #eab308;">0</div>
+                <div class="small text-muted mt-1">Precautionary awareness</div>
+            </div>
+        </div>
+        <div class="col-6 col-lg-3">
+            <div class="stat-kpi-card">
+                <div class="d-flex justify-content-between align-items-center text-muted small mb-2">
+                    <span>Monitored Stations</span>
+                    <span class="badge badge-low px-2 py-1">Full Telemetry</span>
+                </div>
+                <div id="kpi-total" class="kpi-num text-success">64</div>
+                <div class="small text-muted mt-1">Active North India network</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filter & Control Toolbar -->
+    <div class="card bg-dark border-secondary-subtle p-3 mb-4">
+        <div class="row g-3 align-items-center">
+            <div class="col-md-3">
+                <label class="form-label small text-muted mb-1">State Filter</label>
+                <select id="filter-state" class="form-select form-select-sm bg-dark text-white border-secondary">
+                    <option value="">All North Indian States</option>
+                    <option value="HP">Himachal Pradesh (HP)</option>
+                    <option value="JK">Jammu &amp; Kashmir (JK)</option>
+                    <option value="UP">Uttar Pradesh (UP)</option>
+                    <option value="BR">Bihar (BR)</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small text-muted mb-1">Hazard Domain</label>
+                <select id="filter-hazard" class="form-select form-select-sm bg-dark text-white border-secondary">
+                    <option value="all">All Hazard Types</option>
+                    <option value="combined">Multi-Hazard Combined</option>
+                    <option value="flood">Flood Hydrological Risk</option>
+                    <option value="landslide">Landslide Geotechnical Risk</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small text-muted mb-1">Severity Filter</label>
+                <select id="filter-level" class="form-select form-select-sm bg-dark text-white border-secondary">
+                    <option value="">All Risk Levels</option>
+                    <option value="CRITICAL">Critical Only (Red)</option>
+                    <option value="HIGH">High Only (Orange)</option>
+                    <option value="MODERATE">Moderate Only (Amber)</option>
+                    <option value="LOW">Low Only (Green)</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small text-muted mb-1">Search Location</label>
+                <input type="text" id="filter-search" class="form-control form-control-sm bg-dark text-white border-secondary" placeholder="Search station or district...">
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Workspace Layout -->
+    <div class="row g-4">
+        <!-- Left Column: Active Alerts Feed -->
+        <div class="col-lg-8">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h2 class="h5 fw-bold text-white mb-0">Active Advisory Feed (<span id="alert-count-label">0</span>)</h2>
+                <div class="small text-muted" id="last-updated-label">Updated: Just now</div>
+            </div>
+
+            <!-- Alerts Container -->
+            <div id="alerts-container" class="d-flex flex-column gap-3">
+                <!-- Dynamic Alert Cards Injected Here -->
+                <div class="text-center py-5 text-muted">
+                    <div class="spinner-border spinner-border-sm text-primary mb-2" role="status"></div>
+                    <div>Evaluating real-time early warning telemetry...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Column: Distribution, Highest Risk, & Timeline -->
+        <div class="col-lg-4">
+            <!-- Highest Risk Locations -->
+            <div class="card bg-dark border-secondary-subtle p-3 mb-4">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h3 class="h6 fw-bold text-white mb-0">Highest Risk Locations</h3>
+                    <span class="badge bg-secondary-subtle text-secondary small">Top 5</span>
+                </div>
+                <div id="top-risk-list" class="d-flex flex-column gap-2">
+                    <div class="text-muted small">Loading priority risk ranking...</div>
+                </div>
+            </div>
+
+            <!-- Risk Distribution Chart -->
+            <div class="card bg-dark border-secondary-subtle p-3 mb-4">
+                <h3 class="h6 fw-bold text-white mb-3">Regional Risk Distribution</h3>
+                <div style="height: 200px; position: relative;">
+                    <canvas id="riskDistributionChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Alert Activity Stream -->
+            <div class="card bg-dark border-secondary-subtle p-3">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h3 class="h6 fw-bold text-white mb-0">Advisory Stream Log</h3>
+                    <span class="badge bg-secondary-subtle text-secondary small">Live Signal</span>
+                </div>
+                <div id="timeline-stream-container" class="timeline-stream small">
+                    <!-- Dynamic timeline items -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Alert Telemetry & Precaution Inspector -->
+<div class="modal fade" id="alertDetailModal" tabindex="-1" aria-labelledby="alertDetailModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content bg-dark text-white border-secondary">
+            <div class="modal-header border-secondary-subtle">
+                <div>
+                    <h5 class="modal-title fw-bold" id="alertDetailModalLabel">Advisory Details</h5>
+                    <div id="modal-sub-label" class="small text-muted"></div>
+                </div>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <!-- Probability & Severity Banner -->
+                <div class="p-3 rounded-3 mb-4 d-flex justify-content-between align-items-center" id="modal-banner">
+                    <div>
+                        <div class="text-uppercase small fw-bold" id="modal-hazard-type">COMBINED RISK</div>
+                        <div class="h4 fw-bold mb-0" id="modal-risk-level">HIGH RISK</div>
+                    </div>
+                    <div class="text-end">
+                        <div class="small text-white-50">Model Probability</div>
+                        <div class="h3 fw-bold mb-0" id="modal-probability">0.00%</div>
+                    </div>
+                </div>
+
+                <!-- Advisory Text -->
+                <div class="mb-4">
+                    <h6 class="fw-bold text-white mb-2">Scientific Advisory Note</h6>
+                    <p class="text-white-50 mb-0" id="modal-advisory-text"></p>
+                </div>
+
+                <!-- Recommended Precautions -->
+                <div class="mb-4">
+                    <h6 class="fw-bold text-white mb-2">Actionable Research Precautions</h6>
+                    <ul class="list-unstyled d-flex flex-column gap-2 mb-0" id="modal-precautions-list">
+                    </ul>
+                </div>
+
+                <!-- Telemetry & Geographical Parameters -->
+                <div class="mb-3">
+                    <h6 class="fw-bold text-white mb-2">Meteorological &amp; GIS Telemetry</h6>
+                    <div class="row g-2" id="modal-telemetry-grid">
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer border-secondary-subtle d-flex justify-content-between">
+                <div class="small text-danger">⚠️ Academic research signal. Refer to official NDRF/SDMA directives.</div>
+                <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<script src="{{ url_for('static', filename='js/alerts.js') }}"></script>
+{% endblock %}

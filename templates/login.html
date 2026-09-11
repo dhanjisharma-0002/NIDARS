@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+{% block title %}Login | NIDARS Disaster Intelligence Console{% endblock %}
+
+{% block content %}
+<section class="auth-section py-5">
+    <div class="container-fluid px-3 px-lg-4">
+        <div class="row justify-content-center">
+            <div class="col-md-7 col-lg-5 col-xl-4">
+                <div class="command-panel p-4 shadow-lg">
+                    <!-- Brand Identity Header -->
+                    <div class="text-center mb-4">
+                        <div class="brand-icon-box mx-auto mb-2" style="width: 48px; height: 48px; font-size: 1.5rem;">
+                            <span>⚡</span>
+                        </div>
+                        <h1 class="h4 fw-bold text-white mb-1">Welcome Back</h1>
+                        <p class="small text-muted mb-0">Sign in to access the NIDARS command console.</p>
+                    </div>
+
+                    <form method="post" novalidate id="login-form">
+                        {{ form.hidden_tag() }}
+
+                        <!-- Email Input -->
+                        <div class="mb-3">
+                            <label class="form-label" for="{{ form.email.id }}">
+                                <span>📧 {{ form.email.label.text }}</span>
+                            </label>
+                            <div class="input-group">
+                                {{ form.email(class="form-control", autocomplete="email", placeholder="name@example.com") }}
+                            </div>
+                            {% for error in form.email.errors %}
+                            <div class="form-error mt-1 small text-danger">⚠️ {{ error }}</div>
+                            {% endfor %}
+                        </div>
+
+                        <!-- Password Input with Visibility Toggle -->
+                        <div class="mb-4">
+                            <label class="form-label" for="{{ form.password.id }}">
+                                <span>🔒 {{ form.password.label.text }}</span>
+                            </label>
+                            <div class="input-group">
+                                {{ form.password(class="form-control", id="login-password", autocomplete="current-password", placeholder="Enter your password") }}
+                                <button class="btn btn-outline-custom" type="button" id="toggle-login-password" title="Toggle password visibility">
+                                    👁️
+                                </button>
+                            </div>
+                            {% for error in form.password.errors %}
+                            <div class="form-error mt-1 small text-danger">⚠️ {{ error }}</div>
+                            {% endfor %}
+                        </div>
+
+                        <!-- Submit Button -->
+                        <div class="d-grid mb-3">
+                            <button class="btn btn-primary btn-lg" type="submit">
+                                <span>🔑</span> Log In
+                            </button>
+                        </div>
+                    </form>
+
+                    <!-- Quick Demo Credentials Selector -->
+                    <div class="mb-3 p-3 rounded text-start" style="background: var(--bg-surface); border: 1px solid var(--border-color);">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="small text-muted fw-bold">🚀 Quick Demo Fill (Viva / Project Evaluation)</span>
+                        </div>
+                        <div class="d-flex flex-wrap gap-2">
+                            <button type="button" class="demo-badge-pill" id="demo-fill-analyst" title="Fill Analyst Account">
+                                <span>👤</span> <strong>Analyst</strong> (Standard User)
+                            </button>
+                            <button type="button" class="demo-badge-pill" id="demo-fill-admin" title="Fill Administrator Account">
+                                <span>🛡️</span> <strong>Administrator</strong> (Full Access)
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="text-center pt-3 border-top border-secondary-subtle">
+                        <p class="small text-muted mb-0">
+                            Don't have an account?
+                            <a href="{{ url_for('auth.register') }}" class="fw-bold text-info">Create one now</a>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        var toggleBtn = document.getElementById("toggle-login-password");
+        var pwdInput = document.getElementById("login-password");
+        if (toggleBtn && pwdInput) {
+            toggleBtn.addEventListener("click", function() {
+                var isPassword = pwdInput.getAttribute("type") === "password";
+                pwdInput.setAttribute("type", isPassword ? "text" : "password");
+                toggleBtn.textContent = isPassword ? "🙈" : "👁️";
+            });
+        }
+
+        var btnAnalyst = document.getElementById("demo-fill-analyst");
+        var btnAdmin = document.getElementById("demo-fill-admin");
+        var emailInput = document.querySelector('input[name="email"]');
+
+        if (btnAnalyst && emailInput && pwdInput) {
+            btnAnalyst.addEventListener("click", function() {
+                emailInput.value = "analyst@nidars.gov.in";
+                pwdInput.value = "Analyst@2026";
+                if (window.NidarsToast) NidarsToast.show("Filled Analyst demo credentials.", "info");
+            });
+        }
+
+        if (btnAdmin && emailInput && pwdInput) {
+            btnAdmin.addEventListener("click", function() {
+                emailInput.value = "admin@nidars.gov.in";
+                pwdInput.value = "Admin@2026";
+                if (window.NidarsToast) NidarsToast.show("Filled Administrator demo credentials.", "warning");
+            });
+        }
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,383 @@
+{% extends "base.html" %}
+
+{% block title %}Advanced Analytics & Disaster Intelligence — NIDARS{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-lg-4 py-3">
+    <!-- Header Title Bar -->
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4 pb-2 border-bottom border-secondary border-opacity-25">
+        <div>
+            <div class="d-flex align-items-center gap-2">
+                <span class="fs-4">📈</span>
+                <h1 class="h3 mb-0 text-white fw-bold tracking-tight">Advanced Analytics &amp; Disaster Intelligence</h1>
+                <span class="badge bg-primary bg-opacity-25 text-primary border border-primary border-opacity-50 ms-2">Phase 16</span>
+            </div>
+            <p class="text-muted small mb-0 mt-1">Multi-dimensional hydrometeorological risk trends, state/district rankings, and historical seasonality patterns.</p>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+            <!-- CSV Export Dropdown -->
+            <div class="dropdown">
+                <button class="btn btn-outline-info dropdown-toggle d-flex align-items-center gap-2" type="button" id="exportCsvDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                    <span>📥</span> Export CSV
+                </button>
+                <ul class="dropdown-menu dropdown-menu-dark dropdown-menu-end shadow-lg" aria-labelledby="exportCsvDropdown">
+                    <li><a class="dropdown-item export-csv-link" href="#" data-export-type="rankings"><span>📍</span> Top Locations Ranking CSV</a></li>
+                    <li><a class="dropdown-item export-csv-link" href="#" data-export-type="districts"><span>🗺️</span> District Risk Breakdown CSV</a></li>
+                    <li><a class="dropdown-item export-csv-link" href="#" data-export-type="states"><span>🏛️</span> State Risk &amp; DFSI Summary CSV</a></li>
+                    <li><a class="dropdown-item export-csv-link" href="#" data-export-type="seasonality"><span>📅</span> Monthly Seasonality Patterns CSV</a></li>
+                </ul>
+            </div>
+            <button id="refresh-analytics-btn" class="btn btn-primary d-flex align-items-center gap-2">
+                <span id="refresh-spinner" class="spinner-border spinner-border-sm d-none" role="status"></span>
+                <span>🔄</span> Refresh Data
+            </button>
+        </div>
+    </div>
+
+    <!-- Multi-Criteria Filter Bar -->
+    <div class="card bg-dark border-secondary border-opacity-50 shadow-sm mb-4">
+        <div class="card-body py-3 px-3">
+            <div class="row g-2 align-items-center">
+                <!-- State Filter -->
+                <div class="col-6 col-md-3 col-lg-2">
+                    <label class="form-label text-muted small mb-1 fw-semibold">State / Region</label>
+                    <select id="analytics-state-select" class="form-select form-select-sm bg-dark text-light border-secondary">
+                        <option value="ALL" selected>All States</option>
+                        <option value="HP">Himachal Pradesh</option>
+                        <option value="UT">Uttarakhand</option>
+                        <option value="UP">Uttar Pradesh</option>
+                        <option value="BR">Bihar</option>
+                        <option value="JK">Jammu &amp; Kashmir</option>
+                        <option value="PB">Punjab</option>
+                        <option value="HR">Haryana</option>
+                        <option value="DL">Delhi</option>
+                    </select>
+                </div>
+
+                <!-- District Filter -->
+                <div class="col-6 col-md-3 col-lg-2">
+                    <label class="form-label text-muted small mb-1 fw-semibold">District</label>
+                    <select id="analytics-district-select" class="form-select form-select-sm bg-dark text-light border-secondary">
+                        <option value="ALL" selected>All Districts</option>
+                        {% for d in districts %}
+                        <option value="{{ d }}">{{ d }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Hazard Model Filter -->
+                <div class="col-12 col-md-4 col-lg-3">
+                    <label class="form-label text-muted small mb-1 fw-semibold">Hazard Model</label>
+                    <div class="btn-group w-100" role="group" id="hazard-btn-group">
+                        <button type="button" class="btn btn-sm btn-outline-primary active hazard-btn" data-hazard="combined">Combined</button>
+                        <button type="button" class="btn btn-sm btn-outline-primary hazard-btn" data-hazard="flood">🌊 Flood</button>
+                        <button type="button" class="btn btn-sm btn-outline-primary hazard-btn" data-hazard="landslide">⛰️ Landslide</button>
+                    </div>
+                </div>
+
+                <!-- Date Range Period Preset -->
+                <div class="col-6 col-md-3 col-lg-2">
+                    <label class="form-label text-muted small mb-1 fw-semibold">Period Preset</label>
+                    <select id="analytics-period-select" class="form-select form-select-sm bg-dark text-light border-secondary">
+                        <option value="all" selected>All Recorded Data</option>
+                        <option value="30d">Last 30 Days</option>
+                        <option value="90d">Last 90 Days</option>
+                        <option value="1y">Past 1 Year</option>
+                    </select>
+                </div>
+
+                <!-- Risk Level Filter -->
+                <div class="col-6 col-md-3 col-lg-2">
+                    <label class="form-label text-muted small mb-1 fw-semibold">Risk Level Band</label>
+                    <select id="analytics-risk-select" class="form-select form-select-sm bg-dark text-light border-secondary">
+                        <option value="ALL" selected>All Risk Bands</option>
+                        <option value="CRITICAL">Critical (≥ 0.75)</option>
+                        <option value="HIGH">High (0.50–0.75)</option>
+                        <option value="MODERATE">Moderate (0.25–0.50)</option>
+                        <option value="LOW">Low (&lt; 0.25)</option>
+                    </select>
+                </div>
+
+                <!-- Filter Reset Button -->
+                <div class="col-12 col-lg-1 d-flex align-items-end mt-2 mt-lg-0">
+                    <button id="reset-filters-btn" class="btn btn-sm btn-outline-secondary w-100" title="Reset All Filters">
+                        Reset
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Analytical KPI Metrics Cards -->
+    <div class="row g-3 mb-4">
+        <!-- Metric 1: Total Evaluations -->
+        <div class="col-6 col-md-4 col-xl-2">
+            <div class="card bg-dark bg-opacity-75 border-secondary border-opacity-50 h-100 shadow-sm">
+                <div class="card-body p-3">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <span class="text-muted small text-uppercase tracking-wider">Evaluations</span>
+                        <span class="text-primary fs-5">📊</span>
+                    </div>
+                    <h3 class="fw-bold text-white mb-0 mt-2" id="kpi-total-evaluations">--</h3>
+                    <small class="text-muted" style="font-size: 0.72rem;">Model &amp; Weather records</small>
+                </div>
+            </div>
+        </div>
+
+        <!-- Metric 2: Mean Composite Risk -->
+        <div class="col-6 col-md-4 col-xl-2">
+            <div class="card bg-dark bg-opacity-75 border-secondary border-opacity-50 h-100 shadow-sm">
+                <div class="card-body p-3">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <span class="text-muted small text-uppercase tracking-wider">Mean Risk</span>
+                        <span class="text-warning fs-5">⚡</span>
+                    </div>
+                    <div class="d-flex align-items-baseline gap-2 mt-2">
+                        <h3 class="fw-bold text-white mb-0" id="kpi-mean-risk">--</h3>
+                        <span class="badge bg-secondary" id="kpi-risk-badge">--</span>
+                    </div>
+                    <small class="text-muted" style="font-size: 0.72rem;">Calculated index</small>
+                </div>
+            </div>
+        </div>
+
+        <!-- Metric 3: Flood Probability -->
+        <div class="col-6 col-md-4 col-xl-2">
+            <div class="card bg-dark bg-opacity-75 border-secondary border-opacity-50 h-100 shadow-sm">
+                <div class="card-body p-3">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <span class="text-muted small text-uppercase tracking-wider">Avg Flood</span>
+                        <span class="text-info fs-5">🌊</span>
+                    </div>
+                    <h3 class="fw-bold text-white mb-0 mt-2" id="kpi-flood-prob">--</h3>
+                    <small class="text-muted" style="font-size: 0.72rem;">Random Forest Model</small>
+                </div>
+            </div>
+        </div>
+
+        <!-- Metric 4: Landslide Probability -->
+        <div class="col-6 col-md-4 col-xl-2">
+            <div class="card bg-dark bg-opacity-75 border-secondary border-opacity-50 h-100 shadow-sm">
+                <div class="card-body p-3">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <span class="text-muted small text-uppercase tracking-wider">Avg Landslide</span>
+                        <span class="text-danger fs-5">⛰️</span>
+                    </div>
+                    <h3 class="fw-bold text-white mb-0 mt-2" id="kpi-landslide-prob">--</h3>
+                    <small class="text-muted" style="font-size: 0.72rem;">Gradient Boosting Model</small>
+                </div>
+            </div>
+        </div>
+
+        <!-- Metric 5: Active Warnings & Incidents -->
+        <div class="col-6 col-md-4 col-xl-2">
+            <div class="card bg-dark bg-opacity-75 border-secondary border-opacity-50 h-100 shadow-sm">
+                <div class="card-body p-3">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <span class="text-muted small text-uppercase tracking-wider">Active Alerts</span>
+                        <span class="text-warning fs-5">⚠️</span>
+                    </div>
+                    <h3 class="fw-bold text-warning mb-0 mt-2" id="kpi-active-alerts">--</h3>
+                    <small class="text-muted" style="font-size: 0.72rem;"><span id="kpi-citizen-incidents">0</span> Citizen reports</small>
+                </div>
+            </div>
+        </div>
+
+        <!-- Metric 6: Highest Risk District -->
+        <div class="col-6 col-md-4 col-xl-2">
+            <div class="card bg-dark bg-opacity-75 border-secondary border-opacity-50 h-100 shadow-sm">
+                <div class="card-body p-3">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <span class="text-muted small text-uppercase tracking-wider">Top Risk Zone</span>
+                        <span class="text-danger fs-5">🚨</span>
+                    </div>
+                    <h5 class="fw-bold text-danger mb-0 mt-2 text-truncate" id="kpi-highest-district">--</h5>
+                    <small class="text-muted" style="font-size: 0.72rem;">Score: <strong id="kpi-highest-score" class="text-light">--</strong></small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Row 1: State-wise Risk Bar & Severity Distribution Doughnut -->
+    <div class="row g-3 mb-4">
+        <!-- Chart 1: State Risk Bar Chart -->
+        <div class="col-12 col-xl-7">
+            <div class="card bg-dark bg-opacity-75 border-secondary border-opacity-50 h-100 shadow-sm">
+                <div class="card-header bg-transparent border-secondary border-opacity-25 d-flex justify-content-between align-items-center py-2">
+                    <div class="d-flex align-items-center gap-2">
+                        <span>🏛️</span>
+                        <strong class="text-light small text-uppercase tracking-wider">State-Wise Disaster Risk Index &amp; DFSI</strong>
+                    </div>
+                    <span class="badge bg-secondary bg-opacity-50 small">North India Regions</span>
+                </div>
+                <div class="card-body p-3">
+                    <div style="position: relative; height: 280px; width: 100%;">
+                        <canvas id="stateRiskChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Chart 2: Severity Distribution Doughnut -->
+        <div class="col-12 col-xl-5">
+            <div class="card bg-dark bg-opacity-75 border-secondary border-opacity-50 h-100 shadow-sm">
+                <div class="card-header bg-transparent border-secondary border-opacity-25 d-flex justify-content-between align-items-center py-2">
+                    <div class="d-flex align-items-center gap-2">
+                        <span>🎯</span>
+                        <strong class="text-light small text-uppercase tracking-wider">Hazard Prediction Severity Distribution</strong>
+                    </div>
+                    <span class="badge bg-secondary bg-opacity-50 small">Risk Bands</span>
+                </div>
+                <div class="card-body p-3">
+                    <div style="position: relative; height: 280px; width: 100%;">
+                        <canvas id="riskDistributionChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Row 2: Monthly Seasonality Patterns & Weather Correlation -->
+    <div class="row g-3 mb-4">
+        <!-- Chart 3: Monthly Seasonality Area Chart -->
+        <div class="col-12 col-xl-7">
+            <div class="card bg-dark bg-opacity-75 border-secondary border-opacity-50 h-100 shadow-sm">
+                <div class="card-header bg-transparent border-secondary border-opacity-25 d-flex justify-content-between align-items-center py-2">
+                    <div class="d-flex align-items-center gap-2">
+                        <span>📅</span>
+                        <strong class="text-light small text-uppercase tracking-wider">Monthly Seasonality &amp; Precipitation Patterns</strong>
+                    </div>
+                    <span class="badge bg-info bg-opacity-25 text-info small">Monsoon Peaks</span>
+                </div>
+                <div class="card-body p-3">
+                    <div style="position: relative; height: 290px; width: 100%;">
+                        <canvas id="monthlySeasonalityChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Chart 4: Top 10 High-Risk Districts Horizontal Bar -->
+        <div class="col-12 col-xl-5">
+            <div class="card bg-dark bg-opacity-75 border-secondary border-opacity-50 h-100 shadow-sm">
+                <div class="card-header bg-transparent border-secondary border-opacity-25 d-flex justify-content-between align-items-center py-2">
+                    <div class="d-flex align-items-center gap-2">
+                        <span>🏆</span>
+                        <strong class="text-light small text-uppercase tracking-wider">Top 10 High-Risk Districts Ranking</strong>
+                    </div>
+                    <span class="badge bg-danger bg-opacity-25 text-danger small">Calculated Score</span>
+                </div>
+                <div class="card-body p-3">
+                    <div style="position: relative; height: 290px; width: 100%;">
+                        <canvas id="topDistrictsChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Row 3: Multi-Year Progression & Weather Correlations -->
+    <div class="row g-3 mb-4">
+        <div class="col-12">
+            <div class="card bg-dark bg-opacity-75 border-secondary border-opacity-50 shadow-sm">
+                <div class="card-header bg-transparent border-secondary border-opacity-25 d-flex justify-content-between align-items-center py-2">
+                    <div class="d-flex align-items-center gap-2">
+                        <span>🌦️</span>
+                        <strong class="text-light small text-uppercase tracking-wider">Hydrometeorological Trend Correlation (Rainfall &amp; Barometric Pressure vs Hazard Index)</strong>
+                    </div>
+                    <span class="badge bg-primary bg-opacity-25 text-primary small">Dual-Axis Time Series</span>
+                </div>
+                <div class="card-body p-3">
+                    <div style="position: relative; height: 260px; width: 100%;">
+                        <canvas id="weatherCorrelationChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Rankings & Detailed Data Tables -->
+    <div class="row g-3 mb-4">
+        <!-- Table 1: Top High-Risk Observation Locations -->
+        <div class="col-12 col-xl-7">
+            <div class="card bg-dark bg-opacity-75 border-secondary border-opacity-50 h-100 shadow-sm">
+                <div class="card-header bg-transparent border-secondary border-opacity-25 d-flex justify-content-between align-items-center py-2">
+                    <div class="d-flex align-items-center gap-2">
+                        <span>📍</span>
+                        <strong class="text-light small text-uppercase tracking-wider">Top High-Risk Observation Stations</strong>
+                    </div>
+                    <div class="d-flex align-items-center gap-2">
+                        <input type="text" id="locations-table-search" class="form-control form-control-sm bg-dark text-light border-secondary" placeholder="Search station..." style="max-width: 160px;">
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive" style="max-height: 380px;">
+                        <table class="table table-dark table-hover table-striped align-middle mb-0 small" id="locations-ranking-table">
+                            <thead class="table-dark sticky-top border-bottom border-secondary">
+                                <tr>
+                                    <th style="width: 50px;">Rank</th>
+                                    <th>Station / Location</th>
+                                    <th>State</th>
+                                    <th>District</th>
+                                    <th class="text-end">Elevation</th>
+                                    <th class="text-end">Risk Score</th>
+                                    <th class="text-center">Severity</th>
+                                    <th class="text-center">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="locations-table-body">
+                                <tr><td colspan="8" class="text-center text-muted py-4"><span class="spinner-border spinner-border-sm me-2"></span>Loading station rankings...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Table 2: State Risk & DFSI Index Ranking -->
+        <div class="col-12 col-xl-5">
+            <div class="card bg-dark bg-opacity-75 border-secondary border-opacity-50 h-100 shadow-sm">
+                <div class="card-header bg-transparent border-secondary border-opacity-25 d-flex justify-content-between align-items-center py-2">
+                    <div class="d-flex align-items-center gap-2">
+                        <span>🏛️</span>
+                        <strong class="text-light small text-uppercase tracking-wider">State Disaster Severity Index (DFSI)</strong>
+                    </div>
+                    <span class="badge bg-secondary bg-opacity-50 small">Ranked</span>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive" style="max-height: 380px;">
+                        <table class="table table-dark table-hover table-striped align-middle mb-0 small" id="states-ranking-table">
+                            <thead class="table-dark sticky-top border-bottom border-secondary">
+                                <tr>
+                                    <th style="width: 45px;">Rank</th>
+                                    <th>State</th>
+                                    <th class="text-end">Flood</th>
+                                    <th class="text-end">Landslide</th>
+                                    <th class="text-end">Combined</th>
+                                    <th class="text-end">DFSI Score</th>
+                                    <th class="text-center">Level</th>
+                                </tr>
+                            </thead>
+                            <tbody id="states-table-body">
+                                <tr><td colspan="7" class="text-center text-muted py-4"><span class="spinner-border spinner-border-sm me-2"></span>Loading state analytics...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Academic Disclaimer Footer -->
+    <div class="alert bg-dark border-secondary border-opacity-50 text-muted small mb-3 py-2 px-3 d-flex align-items-center gap-2">
+        <span class="fs-5">ℹ️</span>
+        <div>
+            <strong>Authentic Statistical Intelligence:</strong> Analytics and multi-year patterns are calculated from authentic observational records and NIDARS machine learning evaluations. Official advisories issued by IMD, NDMA, CWC, and GSI remain authoritative.
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{{ url_for('static', filename='js/analytics.js') }}"></script>
+{% endblock %}

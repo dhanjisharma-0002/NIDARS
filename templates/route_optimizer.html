@@ -1,0 +1,231 @@
+{% extends "base.html" %}
+{% block title %}Disaster-Aware Safe Route Optimizer | NIDARS{% endblock %}
+{% block body_class %}route-page{% endblock %}
+{% block main_class %}route-main{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-3 px-lg-4 py-3">
+    <!-- Header & Breadcrumbs -->
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-3">
+        <div>
+            <div class="d-flex align-items-center gap-2 mb-1">
+                <span class="badge bg-success text-uppercase px-2 py-1" style="font-size: 0.7rem; letter-spacing: 0.05em;">AI NAVIGATION ENGINE</span>
+                <h1 class="h4 mb-0 text-white fw-bold">Disaster-Aware Safe Route Optimizer</h1>
+            </div>
+            <p class="text-muted small mb-0">Evaluate road driving corridors against multi-hazard spatial models across North India to avoid flood and landslide zones.</p>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+            <a href="{{ url_for('main.map_view') }}" class="btn btn-sm btn-outline-custom">
+                &larr; Return to GIS Risk Map
+            </a>
+            <a href="{{ url_for('main.emergency_view') }}" class="btn btn-sm btn-danger-emergency">
+                🚨 Emergency Mode
+            </a>
+        </div>
+    </div>
+
+    <div class="row g-3">
+        <!-- Sidebar Controls & Inputs -->
+        <div class="col-lg-4 col-xl-4">
+            <div class="command-panel p-3 mb-3">
+                <div class="panel-header py-1 mb-3">
+                    <strong class="small text-uppercase tracking-wider">Corridor Parameters</strong>
+                    <span class="badge bg-primary">OSRM Driving Engine</span>
+                </div>
+                
+                <form id="route-form" novalidate>
+                    <!-- Optimization Mode Switcher -->
+                    <div class="mb-3">
+                        <label class="form-label mb-1 text-light small fw-semibold">Optimization Mode</label>
+                        <div class="btn-group w-100 routing-mode-group" role="group" aria-label="Routing Optimization Mode">
+                            <input type="radio" class="btn-check" name="routing_mode" id="mode-safest" value="safest" checked autocomplete="off">
+                            <label class="btn btn-sm btn-outline-success d-flex align-items-center justify-content-center gap-1" for="mode-safest" title="Prioritizes disaster risk avoidance and minimum risk-adjusted cost">
+                                <span>🛡️</span> <strong>Safest</strong>
+                            </label>
+
+                            <input type="radio" class="btn-check" name="routing_mode" id="mode-shortest" value="shortest" autocomplete="off">
+                            <label class="btn btn-sm btn-outline-info d-flex align-items-center justify-content-center gap-1" for="mode-shortest" title="Prioritizes shortest road driving distance">
+                                <span>⚡</span> <strong>Shortest</strong>
+                            </label>
+
+                            <input type="radio" class="btn-check" name="routing_mode" id="mode-balanced" value="balanced" autocomplete="off">
+                            <label class="btn btn-sm btn-outline-primary d-flex align-items-center justify-content-center gap-1" for="mode-balanced" title="Balanced compromise between distance and hazard mitigation">
+                                <span>⚖️</span> <strong>Balanced</strong>
+                            </label>
+                        </div>
+                        <div id="mode-description-text" class="text-muted mt-1" style="font-size: 0.72rem;">
+                            🛡️ <em>Safest:</em> Prioritizes lowest risk-adjusted cost ($Distance + Distance \times Penalty \times Risk$).
+                        </div>
+                    </div>
+
+                    <!-- Quick Presets -->
+                    <div class="mb-3">
+                        <label class="form-label mb-1">Quick Select Corridor Presets</label>
+                        <select id="preset-corridors" class="form-select form-select-sm">
+                            <option value="" selected>-- Choose High-Risk Corridor Preset --</option>
+                            <option value="28.6139,77.2090,31.1048,77.1734">Delhi to Shimla (HP) [Himalayan Corridor]</option>
+                            <option value="30.7333,76.7794,32.2432,77.1892">Chandigarh to Manali (HP) [Valley Corridor]</option>
+                            <option value="26.8467,80.9462,25.5941,85.1376">Lucknow (UP) to Patna (BR) [Gangetic Plains]</option>
+                            <option value="32.7266,74.8570,34.0837,74.7973">Jammu to Srinagar (JK) [NH44 Mountain Pass]</option>
+                            <option value="25.3176,82.9739,26.1209,85.3647">Varanasi (UP) to Muzaffarpur (BR)</option>
+                        </select>
+                    </div>
+
+                    <!-- Origin Input -->
+                    <div class="p-2 mb-2 rounded" style="background: var(--bg-surface); border: 1px solid var(--border-color);">
+                        <div class="d-flex align-items-center gap-2 mb-1">
+                            <span class="badge bg-success rounded-circle p-1" style="width: 20px; height: 20px; font-size: 0.7rem; display: flex; align-items: center; justify-content: center;">A</span>
+                            <strong class="small text-light">Origin (Start Location)</strong>
+                        </div>
+                        <div class="row g-2">
+                            <div class="col-6">
+                                <label for="start_lat" class="form-label text-muted" style="font-size: 0.72rem;">Start Latitude</label>
+                                <input type="number" step="any" id="start_lat" class="form-control form-control-sm" placeholder="e.g. 28.6139" required>
+                            </div>
+                            <div class="col-6">
+                                <label for="start_lon" class="form-label text-muted" style="font-size: 0.72rem;">Start Longitude</label>
+                                <input type="number" step="any" id="start_lon" class="form-control form-control-sm" placeholder="e.g. 77.2090" required>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Destination Input -->
+                    <div class="p-2 mb-3 rounded" style="background: var(--bg-surface); border: 1px solid var(--border-color);">
+                        <div class="d-flex align-items-center gap-2 mb-1">
+                            <span class="badge bg-danger rounded-circle p-1" style="width: 20px; height: 20px; font-size: 0.7rem; display: flex; align-items: center; justify-content: center;">B</span>
+                            <strong class="small text-light">Destination (Target Location)</strong>
+                        </div>
+                        <div class="row g-2">
+                            <div class="col-6">
+                                <label for="end_lat" class="form-label text-muted" style="font-size: 0.72rem;">End Latitude</label>
+                                <input type="number" step="any" id="end_lat" class="form-control form-control-sm" placeholder="e.g. 31.1048" required>
+                            </div>
+                            <div class="col-6">
+                                <label for="end_lon" class="form-label text-muted" style="font-size: 0.72rem;">End Longitude</label>
+                                <input type="number" step="any" id="end_lon" class="form-control form-control-sm" placeholder="e.g. 77.1734" required>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Advanced Hazard Weight Settings -->
+                    <div class="accordion accordion-flush mb-3" id="advanced-settings-accordion">
+                        <div class="accordion-item bg-transparent border rounded" style="border-color: var(--border-color) !important;">
+                            <h2 class="accordion-header">
+                                <button class="accordion-button collapsed py-2 px-3 text-light" type="button" data-bs-toggle="collapse" data-bs-target="#settings-collapse" aria-expanded="false" style="background: var(--bg-surface); font-size: 0.8rem;">
+                                    ⚙️ Hazard Penalty Weights &amp; Radius
+                                </button>
+                            </h2>
+                            <div id="settings-collapse" class="accordion-collapse collapse" data-bs-parent="#advanced-settings-accordion">
+                                <div class="accordion-body p-2 text-light" style="font-size: 0.78rem; background: var(--bg-panel);">
+                                    <div class="mb-2">
+                                        <div class="d-flex justify-content-between">
+                                            <label for="flood_weight" class="text-muted">Flood Weight (w<sub>f</sub>):</label>
+                                            <strong id="flood-weight-val" class="text-info">0.50</strong>
+                                        </div>
+                                        <input type="range" class="form-range" min="0" max="1" step="0.05" value="0.50" id="flood_weight">
+                                    </div>
+                                    <div class="mb-2">
+                                        <div class="d-flex justify-content-between">
+                                            <label for="landslide_weight" class="text-muted">Landslide Weight (w<sub>l</sub>):</label>
+                                            <strong id="landslide-weight-val" class="text-warning">0.50</strong>
+                                        </div>
+                                        <input type="range" class="form-range" min="0" max="1" step="0.05" value="0.50" id="landslide_weight">
+                                    </div>
+                                    <div>
+                                        <label for="station_radius_km" class="text-muted">Station Buffer Radius:</label>
+                                        <div class="input-group input-group-sm">
+                                            <input type="number" id="station_radius_km" class="form-control form-control-sm" value="50" min="5" max="200">
+                                            <span class="input-group-text">km</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="d-grid gap-2">
+                        <button type="submit" id="find-route-btn" class="btn btn-primary d-flex align-items-center justify-content-center gap-2">
+                            <span id="route-btn-spinner" class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+                            <span id="find-route-btn-text">⚡ EVALUATE MULTI-ROUTES</span>
+                        </button>
+                        <button type="button" id="clear-route-btn" class="btn btn-outline-custom btn-sm">
+                            Clear Route
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Route Results & Comparison Container -->
+            <div id="route-results-container" style="display: none;">
+                <div class="d-flex align-items-center justify-content-between mb-2">
+                    <strong class="text-uppercase small tracking-wider text-light">Multi-Route Intelligence</strong>
+                    <span id="routes-count-badge" class="badge bg-info">1 Route</span>
+                </div>
+
+                <!-- Recommendation Alert Banner -->
+                <div id="recommendation-alert" class="alert alert-info py-2 px-3 small mb-3 border-secondary" role="alert">
+                    <div class="d-flex align-items-center justify-content-between gap-2 mb-1">
+                        <strong id="rec-title" class="text-uppercase">RECOMMENDED SAFEST ROUTE</strong>
+                        <span id="rec-confidence-badge" class="badge bg-success">HIGH CONFIDENCE</span>
+                    </div>
+                    <p id="rec-note" class="mb-0 text-light" style="font-size: 0.76rem;"></p>
+                </div>
+
+                <!-- Dynamic Multi-Route Comparison Cards -->
+                <div id="route-cards-list" class="d-flex flex-column gap-2 mb-3"></div>
+            </div>
+        </div>
+
+        <!-- Map Column -->
+        <div class="col-lg-8 col-xl-8">
+            <div class="command-panel p-0 overflow-hidden position-relative" style="min-height: 640px; height: 100%;">
+                <div id="route-map-loading" class="position-absolute top-0 start-0 w-100 h-100 d-flex flex-column align-items-center justify-content-center z-3" style="background: rgba(7, 13, 24, 0.8); display: none;">
+                    <div class="spinner-border text-info mb-2" role="status"></div>
+                    <span class="text-light small">Evaluating road driving corridors &amp; multi-route risk exposure...</span>
+                </div>
+
+                <div id="route-error-banner" class="alert alert-danger position-absolute top-0 start-50 translate-middle-x mt-3 z-3 shadow" style="display: none; max-width: 90%;"></div>
+
+                <!-- Map Container -->
+                <div id="route-map" style="width: 100%; height: 100%; min-height: 600px; background: #070d18;"></div>
+
+                <!-- Floating Route Map Legend -->
+                <div class="floating-map-legend" style="bottom: 16px; right: 16px;">
+                    <div class="d-flex align-items-center justify-content-between mb-1">
+                        <strong class="text-uppercase tracking-wider" style="font-size: 0.72rem;">Multi-Route Legend</strong>
+                        <span class="badge bg-secondary" style="font-size: 0.65rem;">OSRM • ML</span>
+                    </div>
+                    <div class="d-flex flex-column gap-1">
+                        <div class="d-flex align-items-center gap-2">
+                            <span style="display:inline-block; width: 20px; height: 5px; background: #10b981; border-radius: 3px; box-shadow: 0 0 6px #10b981;"></span>
+                            <span>Selected / Safest Route</span>
+                        </div>
+                        <div class="d-flex align-items-center gap-2">
+                            <span style="display:inline-block; width: 20px; height: 4px; background: #38bdf8; border-style: dashed; border-radius: 2px;"></span>
+                            <span>Shortest Route</span>
+                        </div>
+                        <div class="d-flex align-items-center gap-2">
+                            <span style="display:inline-block; width: 20px; height: 4px; background: #c084fc; border-radius: 2px;"></span>
+                            <span>Balanced / Alt Route</span>
+                        </div>
+                        <div class="d-flex align-items-center gap-2 mt-1 pt-1 border-top border-secondary-subtle">
+                            <span class="legend-swatch" style="background: #38bdf8;"></span>
+                            <span>Weather Station Buffer (&le; 50 km)</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Academic Disclaimer Bar -->
+    <div class="mt-3 p-2 bg-dark bg-opacity-50 border border-secondary-subtle rounded small text-muted text-center" style="font-size: 0.74rem;">
+        <strong>Academic / Research Prototype:</strong> Route safety costs are computational research estimates based on station hazard approximations and OSRM driving geometry. Always obey local traffic and disaster management directives.
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{{ url_for('static', filename='js/routing.js') }}"></script>
+{% endblock %}

@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block title %}My Incident Reports | NIDARS{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-3 px-lg-5 py-4">
+    <!-- Header -->
+    <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3 mb-4">
+        <div>
+            <div class="d-flex align-items-center gap-2 mb-1">
+                <span class="badge bg-primary text-uppercase px-2 py-1" style="font-size: 0.7rem; letter-spacing: 0.05em;">CITIZEN TRACKER</span>
+                <h1 class="h3 mb-0 text-white fw-bold">My Reported Incidents</h1>
+            </div>
+            <p class="text-muted small mb-0">Track the verification and review status of your submitted disaster incident reports.</p>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+            <a href="{{ url_for('main.report_incident_view') }}" class="btn btn-sm btn-danger-emergency">
+                <span>➕</span> Report New Incident
+            </a>
+            <a href="{{ url_for('main.map_view') }}" class="btn btn-sm btn-accent">
+                <span>🗺️</span> View GIS Map
+            </a>
+        </div>
+    </div>
+
+    <!-- Reports Table / Cards -->
+    <article class="command-panel">
+        <div class="panel-header d-flex justify-content-between align-items-center">
+            <h2 class="panel-title mb-0">
+                <span>📋</span> Submitted Incident History
+            </h2>
+            <span class="badge bg-secondary" id="my-reports-count">Loading reports…</span>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table table-custom table-hover align-middle mb-0" id="my-reports-table">
+                <thead>
+                    <tr>
+                        <th>Incident Type</th>
+                        <th>Location</th>
+                        <th>Coordinates</th>
+                        <th>Severity</th>
+                        <th>Status</th>
+                        <th>Verification</th>
+                        <th>Date Reported</th>
+                        <th class="text-end">Photo</th>
+                    </tr>
+                </thead>
+                <tbody id="my-reports-tbody">
+                    <!-- Skeleton loading -->
+                    <tr class="skeleton-row">
+                        <td><span class="skeleton" style="width: 100px; height: 16px;"></span></td>
+                        <td><span class="skeleton" style="width: 160px; height: 16px;"></span></td>
+                        <td><span class="skeleton" style="width: 110px; height: 16px;"></span></td>
+                        <td><span class="skeleton" style="width: 70px; height: 16px;"></span></td>
+                        <td><span class="skeleton" style="width: 80px; height: 16px;"></span></td>
+                        <td><span class="skeleton" style="width: 90px; height: 16px;"></span></td>
+                        <td><span class="skeleton" style="width: 120px; height: 16px;"></span></td>
+                        <td><span class="skeleton" style="width: 40px; height: 16px;"></span></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </article>
+</div>
+
+<!-- Photo Preview Modal -->
+<div class="modal fade" id="photoModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content" style="background: var(--bg-card); border: 1px solid var(--border-color);">
+            <div class="modal-header border-bottom border-secondary-subtle">
+                <h5 class="modal-title text-white">Incident Photo Evidence</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body text-center p-3">
+                <img id="modal-photo-img" src="" alt="Incident Photo Evidence" class="img-fluid rounded" style="max-height: 480px; object-fit: contain;">
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{{ url_for('static', filename='js/my_reports.js') }}"></script>
+{% endblock %}

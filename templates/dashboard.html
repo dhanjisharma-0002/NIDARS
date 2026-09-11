@@ -1,0 +1,296 @@
+{% extends "base.html" %}
+{% block title %}Dashboard | NIDARS Disaster Intelligence Console{% endblock %}
+
+{% block extra_head %}
+<!-- Chart.js 4.4 -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-3 px-lg-4 py-4">
+    <!-- Dashboard Top Bar -->
+    <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3 mb-4">
+        <div>
+            <div class="d-flex align-items-center gap-2 mb-1">
+                <span class="badge bg-primary text-uppercase px-2 py-1" style="font-size: 0.7rem; letter-spacing: 0.05em;">OPERATIONS CONSOLE</span>
+                <h1 class="h3 mb-0 text-white fw-bold">Disaster Intelligence Dashboard</h1>
+            </div>
+            <p class="text-muted small mb-0">Real-time geospatial visualization and AI-based multi-hazard risk assessment across North India.</p>
+        </div>
+        
+        <div class="d-flex align-items-center gap-2">
+            <a href="{{ url_for('main.map_view') }}" class="btn btn-sm btn-accent">
+                <span>🗺️</span> Full GIS Map
+            </a>
+            <a href="{{ url_for('main.route_optimizer_view') }}" class="btn btn-sm btn-primary">
+                <span>🛣️</span> Safe Route Planner
+            </a>
+            <a href="{{ url_for('main.emergency_view') }}" class="btn btn-sm btn-danger-emergency">
+                <span>🚨</span> Emergency Mode
+            </a>
+        </div>
+    </div>
+
+    <!-- Live Alert Ticker Strip -->
+    <div class="dash-alert-ticker mb-4 d-flex justify-content-between align-items-center" id="dash-alert-ticker-container">
+        <div class="d-flex align-items-center gap-2">
+            <span class="badge bg-danger text-uppercase px-2 py-1" style="font-size: 0.68rem; letter-spacing: 0.05em;">LIVE RADAR</span>
+            <span class="small fw-semibold text-light" id="dash-alert-ticker-text">📡 Loading active meteorological advisories and regional alert feeds...</span>
+        </div>
+        <a href="{{ url_for('main.alerts_page') }}" class="btn btn-xs btn-outline-danger py-0 px-2 small" style="font-size: 0.72rem;">
+            View All Alerts &rarr;
+        </a>
+    </div>
+
+    <!-- Metric KPI Cards Row -->
+    <div class="row g-3 mb-4">
+        <!-- Card 1: Monitored Stations -->
+        <div class="col-sm-6 col-xl-3">
+            <article class="metric-card primary">
+                <div class="metric-card-top">
+                    <span class="metric-label">Monitored Stations</span>
+                    <div class="metric-icon-box">📡</div>
+                </div>
+                <div class="metric-number" id="dash-stat-stations">64</div>
+                <div class="metric-footer">
+                    <span class="text-success fw-bold">100% Active</span>
+                    <span>&middot; JK, HP, UP, Bihar</span>
+                </div>
+            </article>
+        </div>
+
+        <!-- Card 2: Flood ML Model -->
+        <div class="col-sm-6 col-xl-3">
+            <article class="metric-card accent">
+                <div class="metric-card-top">
+                    <span class="metric-label">Flood ML Engine</span>
+                    <div class="metric-icon-box">🌊</div>
+                </div>
+                <div class="metric-number">98.4%</div>
+                <div class="metric-footer">
+                    <span class="text-info fw-bold">Random Forest</span>
+                    <span>&middot; ROC-AUC 0.997</span>
+                </div>
+            </article>
+        </div>
+
+        <!-- Card 3: Landslide ML Model -->
+        <div class="col-sm-6 col-xl-3">
+            <article class="metric-card warning">
+                <div class="metric-card-top">
+                    <span class="metric-label">Landslide ML Engine</span>
+                    <div class="metric-icon-box">⛰️</div>
+                </div>
+                <div class="metric-number">0.906</div>
+                <div class="metric-footer">
+                    <span class="text-warning fw-bold">Gradient Boosting</span>
+                    <span>&middot; NASA Catalog</span>
+                </div>
+            </article>
+        </div>
+
+        <!-- Card 4: System Routing Penalty -->
+        <div class="col-sm-6 col-xl-3">
+            <article class="metric-card danger">
+                <div class="metric-card-top">
+                    <span class="metric-label">Risk Cost Factor</span>
+                    <div class="metric-icon-box">🛣️</div>
+                </div>
+                <div class="metric-number">&alpha; = 2.0</div>
+                <div class="metric-footer">
+                    <span class="text-danger fw-bold">OSRM Engine</span>
+                    <span>&middot; Corridor Sampling</span>
+                </div>
+            </article>
+        </div>
+    </div>
+
+    <!-- Visual Charts Row: Risk Distribution & Prediction Activity -->
+    <div class="row g-3 mb-4">
+        <!-- Left: Risk Distribution Chart -->
+        <div class="col-lg-5">
+            <article class="command-panel h-100">
+                <div class="panel-header">
+                    <h2 class="panel-title">
+                        <span>📊</span> Hazard Risk Distribution
+                    </h2>
+                    <span class="badge bg-secondary" id="dash-risk-badge">64 Stations</span>
+                </div>
+                <div style="position: relative; height: 260px;">
+                    <canvas id="risk-distribution-chart" aria-label="Hazard Risk Distribution Chart"></canvas>
+                </div>
+                <div class="d-flex justify-content-around text-center mt-3 pt-2 border-top border-secondary-subtle small">
+                    <div><span class="legend-swatch" style="background: #10b981;"></span> <span class="text-muted">Low:</span> <strong id="count-low">--</strong></div>
+                    <div><span class="legend-swatch" style="background: #f59e0b;"></span> <span class="text-muted">Mod:</span> <strong id="count-mod">--</strong></div>
+                    <div><span class="legend-swatch" style="background: #f97316;"></span> <span class="text-muted">High:</span> <strong id="count-high">--</strong></div>
+                    <div><span class="legend-swatch" style="background: #ef4444;"></span> <span class="text-muted">Crit:</span> <strong id="count-crit">--</strong></div>
+                </div>
+            </article>
+        </div>
+
+        <!-- Right: Multi-Hazard Meteorological Overview -->
+        <div class="col-lg-7">
+            <article class="command-panel h-100">
+                <div class="panel-header">
+                    <h2 class="panel-title">
+                        <span>📈</span> State Station Hazard Breakdown
+                    </h2>
+                    <span class="badge bg-secondary">JK, HP, UP, BR</span>
+                </div>
+                <div style="position: relative; height: 260px;">
+                    <canvas id="state-hazard-chart" aria-label="State Station Hazard Breakdown Chart"></canvas>
+                </div>
+                <p class="text-muted small mt-2 mb-0 text-center">
+                    Comparative meteorological station distribution and active risk monitoring density across 4 North Indian states.
+                </p>
+            </article>
+        </div>
+    </div>
+
+    <!-- Full-Width North India Regional Risk Mini-Map -->
+    <div class="row g-3 mb-4">
+        <div class="col-12">
+            <article class="command-panel p-0 overflow-hidden">
+                <div class="p-3 bg-dark bg-opacity-50 border-bottom border-secondary d-flex flex-wrap justify-content-between align-items-center gap-2">
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="badge bg-info px-2 py-1">LIVE SPATIAL GRID</span>
+                        <h2 class="h6 mb-0 text-white fw-bold">North India Regional Disaster Overview Map</h2>
+                    </div>
+                    <div class="d-flex align-items-center gap-2 small">
+                        <span class="text-muted">Click any station node for detailed hydrometeorological risk metrics</span>
+                        <a href="{{ url_for('main.map_view') }}" class="btn btn-xs btn-outline-custom">Expand GIS Map &rarr;</a>
+                    </div>
+                </div>
+                <div id="dashboard-mini-map" style="height: 380px; width: 100%;"></div>
+            </article>
+        </div>
+    </div>
+
+    <!-- Recent Predictions & Activity Table -->
+    <div class="row g-3">
+        <div class="col-12">
+            <article class="command-panel">
+                <div class="panel-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+                    <h2 class="panel-title mb-0">
+                        <span>📋</span> Recent System Hazard Inquiries &amp; Status
+                    </h2>
+                    <div class="d-flex align-items-center gap-2">
+                        <input type="text" id="dash-prediction-search" class="form-control form-control-sm" placeholder="🔍 Search records..." style="max-width: 200px; font-size: 0.78rem;">
+                        <a href="{{ url_for('main.flood_prediction') }}" class="btn btn-sm btn-outline-custom text-nowrap">
+                            + New Prediction
+                        </a>
+                    </div>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-custom table-hover align-middle mb-0" id="recent-predictions-table">
+                        <thead>
+                            <tr>
+                                <th>Hazard Type</th>
+                                <th>Location / Coordinates</th>
+                                <th>Risk Level</th>
+                                <th>Probability / Score</th>
+                                <th>Status</th>
+                                <th>Timestamp</th>
+                                <th class="text-end">Explainability</th>
+                            </tr>
+                        </thead>
+                        <tbody id="predictions-table-body">
+                            <!-- Skeleton loading rows -->
+                            <tr class="skeleton-row">
+                                <td><span class="skeleton" style="width: 80px; height: 16px;"></span></td>
+                                <td><span class="skeleton" style="width: 140px; height: 16px;"></span></td>
+                                <td><span class="skeleton" style="width: 60px; height: 16px;"></span></td>
+                                <td><span class="skeleton" style="width: 70px; height: 16px;"></span></td>
+                                <td><span class="skeleton" style="width: 75px; height: 16px;"></span></td>
+                                <td><span class="skeleton" style="width: 100px; height: 16px;"></span></td>
+                                <td><span class="skeleton" style="width: 80px; height: 16px;"></span></td>
+                            </tr>
+                            <tr class="skeleton-row">
+                                <td><span class="skeleton" style="width: 90px; height: 16px;"></span></td>
+                                <td><span class="skeleton" style="width: 120px; height: 16px;"></span></td>
+                                <td><span class="skeleton" style="width: 60px; height: 16px;"></span></td>
+                                <td><span class="skeleton" style="width: 70px; height: 16px;"></span></td>
+                                <td><span class="skeleton" style="width: 75px; height: 16px;"></span></td>
+                                <td><span class="skeleton" style="width: 100px; height: 16px;"></span></td>
+                                <td><span class="skeleton" style="width: 80px; height: 16px;"></span></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </article>
+        </div>
+    </div>
+</div>
+
+<!-- PHASE 14 — AI Prediction Explainability Modal -->
+<div class="modal fade" id="dashboardExplainModal" tabindex="-1" aria-labelledby="dashboardExplainModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content border-secondary-subtle" style="background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-color);">
+            <div class="modal-header border-bottom border-secondary-subtle">
+                <div class="d-flex align-items-center gap-2">
+                    <span class="fs-5">🔍</span>
+                    <div>
+                        <h5 class="modal-title fw-bold text-white mb-0" id="dashboardExplainModalLabel">Why this risk? — Prediction Explainability</h5>
+                        <p class="text-muted small mb-0" id="modal-hazard-subtitle">Local Feature Influence Breakdown</p>
+                    </div>
+                </div>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <!-- Summary bar -->
+                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 p-3 rounded mb-4" style="background: var(--bg-surface); border: 1px solid var(--border-color);">
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="text-muted small">Hazard:</span>
+                        <strong class="text-white text-capitalize" id="modal-hazard-name">—</strong>
+                    </div>
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="text-muted small">Assessed Risk:</span>
+                        <span class="risk-badge low" id="modal-risk-badge">—</span>
+                    </div>
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="text-muted small">Score / Probability:</span>
+                        <strong class="text-info" id="modal-probability-val">—</strong>
+                    </div>
+                </div>
+
+                <div class="row g-4 align-items-start">
+                    <!-- Factors list -->
+                    <div class="col-md-5">
+                        <h6 class="text-white fw-bold mb-3 d-flex align-items-center gap-2">
+                            <span>📋</span> Contributing Factors
+                        </h6>
+                        <div class="explainability-factors-list" id="modal-factors-list">
+                            <!-- Populated dynamically -->
+                        </div>
+                    </div>
+
+                    <!-- Horizontal Bar Chart -->
+                    <div class="col-md-7">
+                        <h6 class="text-white fw-bold mb-3 d-flex align-items-center justify-content-between">
+                            <span>📊 Influence Breakdown</span>
+                            <span class="text-muted small" style="font-size: 0.72rem;">(+ Increases / &minus; Decreases)</span>
+                        </h6>
+                        <div style="position: relative; height: 280px; width: 100%;">
+                            <canvas id="modal-explain-chart" aria-label="Modal Feature Contribution Chart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Academic Disclaimer Callout -->
+                <div class="explain-disclaimer-callout mt-4">
+                    <p class="small text-muted mb-0" style="font-size: 0.78rem;">
+                        <strong>Disclaimer:</strong> Model explanations indicate feature influence and should not be interpreted as causal proof.
+                    </p>
+                </div>
+            </div>
+            <div class="modal-footer border-top border-secondary-subtle">
+                <button type="button" class="btn btn-sm btn-outline-custom" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+{% endblock %}

@@ -1,0 +1,370 @@
+{% extends "base.html" %}
+{% block title %}What-If Disaster Risk Simulator | NIDARS{% endblock %}
+{% block body_class %}simulator-page{% endblock %}
+{% block main_class %}simulator-main{% endblock %}
+
+{% block extra_head %}
+<!-- Chart.js 4.4 -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-3 px-lg-4 py-3">
+    <!-- Header & Breadcrumb -->
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-3">
+        <div>
+            <div class="d-flex align-items-center gap-2 mb-1">
+                <span class="badge bg-purple text-uppercase px-2 py-1" style="background: #8b5cf6; font-size: 0.7rem; letter-spacing: 0.05em;">SCENARIO INTELLIGENCE ENGINE</span>
+                <h1 class="h4 mb-0 text-white fw-bold">What-If Disaster Risk Simulator</h1>
+            </div>
+            <p class="text-muted small mb-0">Simulate how changing environmental parameters alter flood, landslide, and combined hazard predictions using authentic NIDARS ML models.</p>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+            <a href="{{ url_for('main.map_view') }}" class="btn btn-sm btn-outline-custom">
+                &larr; GIS Risk Map
+            </a>
+            <a href="{{ url_for('main.route_optimizer_view') }}" class="btn btn-sm btn-outline-custom">
+                🛣️ Safe Route
+            </a>
+            <a href="{{ url_for('main.emergency_view') }}" class="btn btn-sm btn-danger-emergency">
+                🚨 Emergency Mode
+            </a>
+        </div>
+    </div>
+
+    <!-- Official Simulation Disclaimer Notice -->
+    <div class="alert alert-warning py-2 px-3 small mb-3 border-warning-subtle d-flex align-items-center gap-2" role="alert" style="background: rgba(245, 158, 11, 0.1); border-color: rgba(245, 158, 11, 0.3);">
+        <span style="font-size: 1.1rem;">⚠️</span>
+        <div>
+            <strong class="text-warning">Simulation Notice:</strong> This simulation demonstrates model response to user-defined scenarios. It is not a real-time official forecast.
+        </div>
+    </div>
+
+    <!-- Presets & Station Loader Bar -->
+    <div class="command-panel p-3 mb-3">
+        <div class="row g-3 align-items-center">
+            <div class="col-lg-7">
+                <label class="form-label small text-uppercase tracking-wider text-muted mb-1 fw-semibold">Quick Scenario Presets</label>
+                <div class="d-flex flex-wrap gap-2">
+                    <button type="button" class="btn btn-sm btn-outline-info preset-btn" data-preset="heavy_rainfall" title="Add heavy monsoon rainfall">
+                        <span>🌧️</span> Heavy Rainfall (+50mm)
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-danger preset-btn" data-preset="extreme_rainfall" title="Simulate extreme cloudburst deluge">
+                        <span>⛈️</span> Extreme Cloudburst (+150mm)
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-warning preset-btn" data-preset="high_wind" title="Simulate gale-force winds">
+                        <span>💨</span> High Gale Wind (+45km/h)
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-primary preset-btn" data-preset="low_pressure" title="Simulate deep cyclonic depression">
+                        <span>🌪️</span> Low Pressure (-30hPa)
+                    </button>
+                </div>
+            </div>
+            <div class="col-lg-5">
+                <label for="station-baseline-select" class="form-label small text-uppercase tracking-wider text-muted mb-1 fw-semibold">Load Real Station Baseline</label>
+                <select id="station-baseline-select" class="form-select form-select-sm">
+                    <option value="" selected>-- Select North India Weather Station --</option>
+                    {% for st in station_baselines %}
+                    <option value='{{ st.features | tojson | safe }}'>
+                        📍 {{ st.station_name }} ({{ st.district }}, {{ st.state }})
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <!-- Simulation Input Form (Dual Panel: Current vs Scenario) -->
+    <form id="simulator-form" novalidate>
+        <div class="row g-3 mb-3">
+            <!-- Left: Current / Baseline Conditions -->
+            <div class="col-lg-6">
+                <div class="command-panel p-3 h-100">
+                    <div class="d-flex align-items-center justify-content-between mb-3 pb-2 border-bottom border-secondary-subtle">
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="badge bg-secondary rounded-circle p-1" style="width: 22px; height: 22px; display: flex; align-items: center; justify-content: center;">1</span>
+                            <strong class="text-light">Current / Baseline Conditions</strong>
+                        </div>
+                        <span class="badge bg-secondary-subtle text-secondary small">Ground Truth</span>
+                    </div>
+
+                    <div class="row g-2">
+                        <div class="col-md-4">
+                            <label for="curr_rainfall_24h" class="form-label small text-muted">Rainfall 24h (mm)</label>
+                            <input type="number" step="any" id="curr_rainfall_24h" class="form-control form-control-sm" value="25.0" min="0" max="2000" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="curr_rainfall_72h" class="form-label small text-muted">Rainfall 72h (mm)</label>
+                            <input type="number" step="any" id="curr_rainfall_72h" class="form-control form-control-sm" value="50.0" min="0" max="4000" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="curr_rainfall_7d" class="form-label small text-muted">Rainfall 7d (mm)</label>
+                            <input type="number" step="any" id="curr_rainfall_7d" class="form-control form-control-sm" value="80.0" min="0" max="8000" required>
+                        </div>
+
+                        <div class="col-md-4">
+                            <label for="curr_temperature" class="form-label small text-muted">Temperature (°C)</label>
+                            <input type="number" step="any" id="curr_temperature" class="form-control form-control-sm" value="24.5" min="-40" max="60" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="curr_wind_speed" class="form-label small text-muted">Wind Speed (km/h)</label>
+                            <input type="number" step="any" id="curr_wind_speed" class="form-control form-control-sm" value="12.0" min="0" max="200" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="curr_air_pressure" class="form-label small text-muted">Air Pressure (hPa)</label>
+                            <input type="number" step="any" id="curr_air_pressure" class="form-control form-control-sm" value="1012.0" min="500" max="1100" required>
+                        </div>
+
+                        <div class="col-md-4">
+                            <label for="curr_elevation" class="form-label small text-muted">Elevation (m)</label>
+                            <input type="number" step="any" id="curr_elevation" class="form-control form-control-sm" value="450.0" min="-100" max="9000" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="curr_latitude" class="form-label small text-muted">Latitude (°N)</label>
+                            <input type="number" step="any" id="curr_latitude" class="form-control form-control-sm" value="30.5" min="0" max="90" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="curr_longitude" class="form-label small text-muted">Longitude (°E)</label>
+                            <input type="number" step="any" id="curr_longitude" class="form-control form-control-sm" value="78.0" min="0" max="180" required>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right: What-If Scenario Conditions -->
+            <div class="col-lg-6">
+                <div class="command-panel p-3 h-100" style="border-color: rgba(139, 92, 246, 0.4);">
+                    <div class="d-flex align-items-center justify-content-between mb-3 pb-2 border-bottom border-secondary-subtle">
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="badge bg-purple rounded-circle p-1" style="background: #8b5cf6; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center;">2</span>
+                            <strong class="text-light">What-If Scenario Conditions</strong>
+                        </div>
+                        <button type="button" id="copy-baseline-btn" class="btn btn-xs btn-outline-custom" style="font-size: 0.72rem;">
+                            Copy from Baseline &rarr;
+                        </button>
+                    </div>
+
+                    <div class="row g-2">
+                        <div class="col-md-4">
+                            <div class="d-flex justify-content-between">
+                                <label for="scen_rainfall_24h" class="form-label small text-muted">Rainfall 24h (mm)</label>
+                                <span id="delta_rainfall_24h" class="badge bg-secondary small text-xs" style="font-size: 0.65rem;">+0</span>
+                            </div>
+                            <input type="number" step="any" id="scen_rainfall_24h" class="form-control form-control-sm border-info" value="75.0" min="0" max="2000" required>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="d-flex justify-content-between">
+                                <label for="scen_rainfall_72h" class="form-label small text-muted">Rainfall 72h (mm)</label>
+                                <span id="delta_rainfall_72h" class="badge bg-secondary small text-xs" style="font-size: 0.65rem;">+0</span>
+                            </div>
+                            <input type="number" step="any" id="scen_rainfall_72h" class="form-control form-control-sm border-info" value="150.0" min="0" max="4000" required>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="d-flex justify-content-between">
+                                <label for="scen_rainfall_7d" class="form-label small text-muted">Rainfall 7d (mm)</label>
+                                <span id="delta_rainfall_7d" class="badge bg-secondary small text-xs" style="font-size: 0.65rem;">+0</span>
+                            </div>
+                            <input type="number" step="any" id="scen_rainfall_7d" class="form-control form-control-sm border-info" value="230.0" min="0" max="8000" required>
+                        </div>
+
+                        <div class="col-md-4">
+                            <div class="d-flex justify-content-between">
+                                <label for="scen_temperature" class="form-label small text-muted">Temperature (°C)</label>
+                                <span id="delta_temperature" class="badge bg-secondary small text-xs" style="font-size: 0.65rem;">+0</span>
+                            </div>
+                            <input type="number" step="any" id="scen_temperature" class="form-control form-control-sm" value="24.5" min="-40" max="60" required>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="d-flex justify-content-between">
+                                <label for="scen_wind_speed" class="form-label small text-muted">Wind Speed (km/h)</label>
+                                <span id="delta_wind_speed" class="badge bg-secondary small text-xs" style="font-size: 0.65rem;">+0</span>
+                            </div>
+                            <input type="number" step="any" id="scen_wind_speed" class="form-control form-control-sm" value="12.0" min="0" max="200" required>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="d-flex justify-content-between">
+                                <label for="scen_air_pressure" class="form-label small text-muted">Air Pressure (hPa)</label>
+                                <span id="delta_air_pressure" class="badge bg-secondary small text-xs" style="font-size: 0.65rem;">+0</span>
+                            </div>
+                            <input type="number" step="any" id="scen_air_pressure" class="form-control form-control-sm" value="1012.0" min="500" max="1100" required>
+                        </div>
+
+                        <div class="col-md-4">
+                            <label for="scen_elevation" class="form-label small text-muted">Elevation (m)</label>
+                            <input type="number" step="any" id="scen_elevation" class="form-control form-control-sm" value="450.0" min="-100" max="9000" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="scen_latitude" class="form-label small text-muted">Latitude (°N)</label>
+                            <input type="number" step="any" id="scen_latitude" class="form-control form-control-sm" value="30.5" min="0" max="90" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="scen_longitude" class="form-label small text-muted">Longitude (°E)</label>
+                            <input type="number" step="any" id="scen_longitude" class="form-control form-control-sm" value="78.0" min="0" max="180" required>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Controls Row: Hazard Mode & Action Button -->
+        <div class="command-panel p-3 mb-3">
+            <div class="row g-3 align-items-center">
+                <div class="col-md-6">
+                    <label class="form-label small text-muted mb-1 fw-semibold">Simulation Focus</label>
+                    <div class="btn-group w-100" role="group" aria-label="Hazard Focus">
+                        <input type="radio" class="btn-check" name="hazard_focus" id="focus-combined" value="combined" checked autocomplete="off">
+                        <label class="btn btn-sm btn-outline-primary" for="focus-combined">
+                            <span>⚡</span> Combined Multi-Hazard
+                        </label>
+
+                        <input type="radio" class="btn-check" name="hazard_focus" id="focus-flood" value="flood" autocomplete="off">
+                        <label class="btn btn-sm btn-outline-info" for="focus-flood">
+                            <span>🌊</span> Flood Only
+                        </label>
+
+                        <input type="radio" class="btn-check" name="hazard_focus" id="focus-landslide" value="landslide" autocomplete="off">
+                        <label class="btn btn-sm btn-outline-warning" for="focus-landslide">
+                            <span>⛰️</span> Landslide Only
+                        </label>
+                    </div>
+                </div>
+
+                <div class="col-md-6 d-flex align-items-end">
+                    <button type="submit" id="run-sim-btn" class="btn btn-primary w-100 d-flex align-items-center justify-content-center gap-2 py-2" style="background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); border: none;">
+                        <span id="sim-btn-spinner" class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+                        <span class="fw-bold tracking-wider">⚡ RUN WHAT-IF SIMULATION</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </form>
+
+    <!-- Error Banner -->
+    <div id="sim-error-banner" class="alert alert-danger shadow-sm mb-3" style="display: none;"></div>
+
+    <!-- Results Section (Initially Hidden) -->
+    <div id="simulation-results-section" style="display: none;">
+        <!-- Impact Summary Callout -->
+        <div class="impact-callout p-3 rounded mb-3 d-flex flex-wrap align-items-center justify-content-between gap-3" style="background: rgba(139, 92, 246, 0.15); border: 1px solid rgba(139, 92, 246, 0.35);">
+            <div>
+                <div class="text-uppercase small tracking-wider text-muted mb-1">Simulated Impact Assessment</div>
+                <h3 id="impact-headline" class="h5 mb-0 text-white fw-bold">Combined Disaster Risk increased by +34.5 percentage points (LOW &rarr; HIGH).</h3>
+            </div>
+            <div id="impact-badge-container" class="d-flex align-items-center gap-2">
+                <span id="impact-pill" class="badge px-3 py-2 fs-6">HIGH INCREASE</span>
+                <button type="button" class="btn btn-sm btn-outline-info d-flex align-items-center gap-1" id="btn-download-simulator-report" title="Export Simulation Scenario PDF Report">
+                    <span>📄</span> Export PDF Report
+                </button>
+            </div>
+        </div>
+
+        <!-- Metric Comparison Cards -->
+        <div class="row g-3 mb-3">
+            <!-- Combined Risk -->
+            <div class="col-md-4">
+                <div class="metric-card p-3 h-100">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="text-muted small text-uppercase">Combined Joint Risk</span>
+                        <span id="comb-level-shift" class="badge bg-secondary">LOW &rarr; HIGH</span>
+                    </div>
+                    <div class="d-flex align-items-baseline gap-2 mb-1">
+                        <span id="comb-curr-val" class="text-muted fs-5">0.18</span>
+                        <span class="text-muted fs-6">&rarr;</span>
+                        <span id="comb-scen-val" class="metric-number fs-3" style="color: #c084fc;">0.65</span>
+                    </div>
+                    <div class="small d-flex justify-content-between text-muted">
+                        <span>Change:</span>
+                        <strong id="comb-delta-val" class="text-warning">+47.0 pts (+261%)</strong>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Flood Probability -->
+            <div class="col-md-4">
+                <div class="metric-card p-3 h-100">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="text-muted small text-uppercase">Flood Probability</span>
+                        <span id="flood-level-shift" class="badge bg-secondary">LOW &rarr; HIGH</span>
+                    </div>
+                    <div class="d-flex align-items-baseline gap-2 mb-1">
+                        <span id="flood-curr-val" class="text-muted fs-5">0.12</span>
+                        <span class="text-muted fs-6">&rarr;</span>
+                        <span id="flood-scen-val" class="metric-number fs-3 text-info">0.78</span>
+                    </div>
+                    <div class="small d-flex justify-content-between text-muted">
+                        <span>Change:</span>
+                        <strong id="flood-delta-val" class="text-info">+66.0 pts</strong>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Landslide Probability -->
+            <div class="col-md-4">
+                <div class="metric-card p-3 h-100">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="text-muted small text-uppercase">Landslide Probability</span>
+                        <span id="ls-level-shift" class="badge bg-secondary">LOW &rarr; MODERATE</span>
+                    </div>
+                    <div class="d-flex align-items-baseline gap-2 mb-1">
+                        <span id="ls-curr-val" class="text-muted fs-5">0.05</span>
+                        <span class="text-muted fs-6">&rarr;</span>
+                        <span id="ls-scen-val" class="metric-number fs-3 text-warning">0.42</span>
+                    </div>
+                    <div class="small d-flex justify-content-between text-muted">
+                        <span>Change:</span>
+                        <strong id="ls-delta-val" class="text-warning">+37.0 pts</strong>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Charts & Variable Breakdown Row -->
+        <div class="row g-3 mb-3">
+            <!-- Chart.js Risk Comparison -->
+            <div class="col-lg-6">
+                <div class="command-panel p-3 h-100">
+                    <div class="panel-header py-1 mb-3">
+                        <strong class="small text-uppercase tracking-wider">Risk Profile Comparison</strong>
+                        <span class="badge bg-primary">Chart.js</span>
+                    </div>
+                    <div style="position: relative; height: 300px; width: 100%;">
+                        <canvas id="simComparisonChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Variable Deltas Table -->
+            <div class="col-lg-6">
+                <div class="command-panel p-3 h-100">
+                    <div class="panel-header py-1 mb-3">
+                        <strong class="small text-uppercase tracking-wider">Environmental Variable Deltas</strong>
+                        <span class="badge bg-secondary">Inputs</span>
+                    </div>
+                    <div class="table-responsive" style="max-height: 300px;">
+                        <table class="table table-sm table-dark table-striped table-hover mb-0 small" style="font-size: 0.78rem;">
+                            <thead>
+                                <tr class="text-muted">
+                                    <th>Variable</th>
+                                    <th>Current</th>
+                                    <th>Scenario</th>
+                                    <th>Delta</th>
+                                </tr>
+                            </thead>
+                            <tbody id="sim-deltas-table-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Academic Disclaimer -->
+    <div class="p-2 bg-dark bg-opacity-50 border border-secondary-subtle rounded small text-muted text-center" style="font-size: 0.74rem;">
+        <strong>Academic / Research Disclaimer:</strong> {{ disclaimer | default("This simulation demonstrates model response to user-defined scenarios. It is not a real-time official forecast.") }}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{{ url_for('static', filename='js/simulator.js') }}"></script>
+{% endblock %}

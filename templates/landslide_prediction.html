@@ -1,0 +1,253 @@
+{% extends "base.html" %}
+{% block title %}Landslide ML Assessment | NIDARS{% endblock %}
+
+{% block extra_head %}
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-3 px-lg-5 py-4">
+    <!-- Page Header -->
+    <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3 mb-4">
+        <div>
+            <div class="d-flex align-items-center gap-2 mb-1">
+                <span class="badge bg-warning text-dark text-uppercase px-2 py-1" style="font-size: 0.7rem; letter-spacing: 0.05em;">AI ML ENGINE</span>
+                <h1 class="h3 mb-0 text-white fw-bold">AI Landslide Risk Assessment</h1>
+            </div>
+            <p class="text-muted small mb-0">Gradient Boosting Classifier trained on NASA Global Landslide Catalog occurrences across North India.</p>
+        </div>
+        <div class="system-status-pill online" id="landslide-status-chip">
+            <span class="status-dot"></span>
+            <span>Gradient Boosting Classifier Active</span>
+        </div>
+    </div>
+
+    <!-- Main Two-Column Command Layout -->
+    <div class="row g-4">
+        <!-- Left Column: Prediction Inputs Form -->
+        <div class="col-lg-7">
+            <article class="command-panel">
+                <div class="panel-header">
+                    <h2 class="panel-title">
+                        <span>⛰️</span> Terrain &amp; Meteorological Parameters
+                    </h2>
+                    <div class="d-flex gap-1">
+                        <button type="button" class="preset-btn" id="preset-himalayan" title="Load High Himalayan Scenario">🏔️ Shimla Surge</button>
+                        <button type="button" class="preset-btn" id="preset-valley" title="Load Moderate Valley Scenario">🌲 Manali Valley</button>
+                        <button type="button" class="preset-btn" id="preset-plains" title="Load Plains Baseline Scenario">🌾 Plains Baseline</button>
+                    </div>
+                </div>
+
+                <form id="landslide-form" novalidate>
+                    <div class="row g-3">
+                        <!-- Rainfall 24h -->
+                        <div class="col-md-4">
+                            <label class="form-label" for="rainfall_24h">
+                                <span>🌧️ Rainfall 24h</span> <span class="badge bg-secondary">mm</span>
+                            </label>
+                            <input class="form-control" id="rainfall_24h" name="rainfall_24h" type="number" step="any" placeholder="e.g. 85.0" required>
+                        </div>
+
+                        <!-- Rainfall 72h -->
+                        <div class="col-md-4">
+                            <label class="form-label" for="rainfall_72h">
+                                <span>🌧️ Rainfall 72h</span> <span class="badge bg-secondary">mm</span>
+                            </label>
+                            <input class="form-control" id="rainfall_72h" name="rainfall_72h" type="number" step="any" placeholder="e.g. 195.0" required>
+                        </div>
+
+                        <!-- Rainfall 7d -->
+                        <div class="col-md-4">
+                            <label class="form-label" for="rainfall_7d">
+                                <span>🌧️ Rainfall 7 Days</span> <span class="badge bg-secondary">mm</span>
+                            </label>
+                            <input class="form-control" id="rainfall_7d" name="rainfall_7d" type="number" step="any" placeholder="e.g. 380.0" required>
+                        </div>
+
+                        <!-- Temperature -->
+                        <div class="col-md-4">
+                            <label class="form-label" for="temperature">
+                                <span>🌡️ Temperature</span> <span class="badge bg-secondary">°C</span>
+                            </label>
+                            <input class="form-control" id="temperature" name="temperature" type="number" step="any" placeholder="e.g. 17.5" required>
+                        </div>
+
+                        <!-- Wind Speed -->
+                        <div class="col-md-4">
+                            <label class="form-label" for="wind_speed">
+                                <span>💨 Wind Speed</span> <span class="badge bg-secondary">m/s</span>
+                            </label>
+                            <input class="form-control" id="wind_speed" name="wind_speed" type="number" step="any" placeholder="e.g. 14.0" required>
+                        </div>
+
+                        <!-- Air Pressure -->
+                        <div class="col-md-4">
+                            <label class="form-label" for="air_pressure">
+                                <span>⏲️ Air Pressure</span> <span class="badge bg-secondary">hPa</span>
+                            </label>
+                            <input class="form-control" id="air_pressure" name="air_pressure" type="number" step="any" placeholder="e.g. 985.0" required>
+                        </div>
+
+                        <!-- Elevation -->
+                        <div class="col-md-4">
+                            <label class="form-label" for="elevation">
+                                <span>🏔️ Elevation</span> <span class="badge bg-secondary">meters</span>
+                            </label>
+                            <input class="form-control" id="elevation" name="elevation" type="number" step="any" placeholder="e.g. 2276" required>
+                        </div>
+
+                        <!-- Latitude -->
+                        <div class="col-md-4">
+                            <label class="form-label" for="latitude">
+                                <span>📍 Latitude</span> <span class="badge bg-secondary">°N</span>
+                            </label>
+                            <input class="form-control" id="latitude" name="latitude" type="number" step="any" placeholder="e.g. 31.1048" required>
+                        </div>
+
+                        <!-- Longitude -->
+                        <div class="col-md-4">
+                            <label class="form-label" for="longitude">
+                                <span>📍 Longitude</span> <span class="badge bg-secondary">°E</span>
+                            </label>
+                            <input class="form-control" id="longitude" name="longitude" type="number" step="any" placeholder="e.g. 77.1734" required>
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-between align-items-center mt-4 pt-3 border-top border-secondary-subtle">
+                        <span class="small text-muted" id="landslide-form-note">Fill all 9 parameters to evaluate landslide hazard.</span>
+                        <button class="btn btn-warning text-dark fw-bold btn-lg px-4" id="btn-predict-landslide" type="submit">
+                            <span>⛰️</span> EVALUATE LANDSLIDE RISK
+                        </button>
+                    </div>
+                </form>
+            </article>
+        </div>
+
+        <!-- Right Column: AI Prediction Result & Visual Gauge -->
+        <div class="col-lg-5">
+            <article class="command-panel h-100 d-flex flex-column justify-content-between text-center">
+                <div>
+                    <div class="panel-header justify-content-center">
+                        <h2 class="panel-title">
+                            <span>🤖</span> Landslide Risk Probability &amp; Advisory
+                        </h2>
+                    </div>
+
+                    <div class="my-3">
+                        <!-- Circular Gauge Dial -->
+                        <div class="circular-gauge-container">
+                            <svg class="circular-gauge-svg" viewBox="0 0 160 160">
+                                <circle class="gauge-bg" cx="80" cy="80" r="70" />
+                                <circle class="gauge-progress" id="landslide-gauge-circle" cx="80" cy="80" r="70" stroke="#10b981" />
+                            </svg>
+                            <div class="gauge-center-text">
+                                <div class="gauge-percent" id="landslide-probability">—</div>
+                                <div class="gauge-label">P(Landslide)</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <span class="text-muted small d-block mb-1">Advisory Risk Category</span>
+                        <span class="risk-badge low" id="landslide-risk" style="font-size: 0.95rem; padding: 0.4rem 1.1rem;">
+                            Awaiting Assessment
+                        </span>
+                    </div>
+
+                    <div class="p-3 rounded mb-3 text-start small" style="background: var(--bg-surface); border: 1px solid var(--border-color);">
+                        <div class="d-flex justify-content-between mb-1">
+                            <span class="text-muted">Model Classifier:</span>
+                            <strong class="text-warning">Gradient Boosting (Frozen)</strong>
+                        </div>
+                        <div class="d-flex justify-content-between mb-1">
+                            <span class="text-muted">Model ROC-AUC:</span>
+                            <strong class="text-success">0.9057</strong>
+                        </div>
+                        <div class="d-flex justify-content-between mb-1">
+                            <span class="text-muted">Advisory Threshold (&tau;<sub>adv</sub>):</span>
+                            <strong class="text-info">&ge; 0.02 (2.0%)</strong>
+                        </div>
+                        <div class="d-flex justify-content-between">
+                            <span class="text-muted">Warning Threshold (&tau;<sub>warn</sub>):</span>
+                            <strong class="text-danger">&ge; 0.10 (10.0%)</strong>
+                        </div>
+                    </div>
+
+                    <p class="small text-muted mb-0" id="landslide-message">
+                        Submit parameters to compute calibrated probability signal.
+                    </p>
+
+                    <div class="mt-3" id="landslide-report-btn-box" style="display: none;">
+                        <button type="button" class="btn btn-outline-warning btn-sm w-100 d-flex align-items-center justify-content-center gap-2" id="btn-download-landslide-report">
+                            <span>📄</span> Download Disaster PDF Report
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Advisory Disclaimer -->
+                <div class="mt-3 pt-3 border-top border-secondary-subtle">
+                    <div class="disclaimer-box text-start">
+                        <strong>⚠️ Research Signal Notice:</strong> The Landslide ML model is an advisory research prioritization signal based on extreme historical class imbalance (NASA Catalog ground truth) and is <strong>NOT an official localized landslide early warning</strong>. Always follow Geological Survey of India (GSI) and SDMA alerts.
+                    </div>
+                </div>
+            </article>
+        </div>
+    </div>
+
+    <!-- PHASE 14 — AI Prediction Explainability Panel -->
+    <div class="row g-4 mt-2" id="landslide-explainability-row" style="display: none;">
+        <div class="col-12">
+            <article class="command-panel">
+                <div class="panel-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+                    <h2 class="panel-title mb-0">
+                        <span>🔍</span> Why this risk? — AI Landslide Prediction Explainability
+                    </h2>
+                    <span class="badge bg-warning bg-opacity-25 text-warning border border-warning border-opacity-25 px-2 py-1" style="font-size: 0.72rem;">
+                        Marginal Baseline Attribution &amp; Gradient Boosting Importance
+                    </span>
+                </div>
+
+                <div class="row g-4 mt-1 align-items-start">
+                    <!-- Left: Top Contributing Factors List -->
+                    <div class="col-lg-5">
+                        <div class="d-flex align-items-center justify-content-between mb-3">
+                            <h3 class="h6 text-white fw-bold mb-0">
+                                <span>📋</span> Top Contributing Factors
+                            </h3>
+                            <span class="text-muted small" style="font-size: 0.75rem;">Ranked by Influence</span>
+                        </div>
+                        <div class="explainability-factors-list" id="landslide-factors-list">
+                            <!-- Populated dynamically via JS -->
+                        </div>
+                    </div>
+
+                    <!-- Right: Horizontal Bar Chart -->
+                    <div class="col-lg-7">
+                        <div class="d-flex align-items-center justify-content-between mb-3">
+                            <h3 class="h6 text-white fw-bold mb-0">
+                                <span>📊</span> Feature Contribution Breakdown
+                            </h3>
+                            <span class="text-muted small" style="font-size: 0.75rem;">(+ Increases Risk / &minus; Decreases Risk)</span>
+                        </div>
+                        <div style="position: relative; height: 320px; width: 100%;">
+                            <canvas id="landslide-explain-chart" aria-label="Landslide Feature Contribution Horizontal Bar Chart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Academic Disclaimer Callout -->
+                <div class="explain-disclaimer-callout mt-4">
+                    <p class="small text-muted mb-0" style="font-size: 0.78rem;">
+                        <strong>Disclaimer:</strong> Model explanations indicate feature influence and should not be interpreted as causal proof.
+                    </p>
+                </div>
+            </article>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{{ url_for('static', filename='js/landslide.js') }}"></script>
+{% endblock %}
