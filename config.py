@@ -13,7 +13,7 @@ IS_VERCEL = bool(os.environ.get("VERCEL") or os.environ.get("VERCEL_ENV"))
 
 def _resolve_database_uri() -> str:
     """Resolve database URI supporting PostgreSQL, MySQL, and serverless SQLite fallback."""
-    db_url = os.environ.get("DATABASE_URL")
+    db_url = os.environ.get("DATABASE_URL", "").strip()
     if db_url:
         # Standardize PostgreSQL URLs (Vercel Postgres, Neon, Supabase often use postgres://)
         if db_url.startswith("postgres://"):
@@ -22,17 +22,25 @@ def _resolve_database_uri() -> str:
             db_url = db_url.replace("postgresql://", "postgresql+pg8000://", 1)
         return db_url
 
-    user = os.environ.get("DB_USER")
-    host = os.environ.get("DB_HOST")
+    user = os.environ.get("DB_USER", "").strip()
+    host = os.environ.get("DB_HOST", "").strip()
     password = quote_plus(os.environ.get("DB_PASSWORD", ""))
     port = os.environ.get("DB_PORT", "3306")
     name = os.environ.get("DB_NAME", "nidars_db")
 
-    # If running in Vercel serverless without an explicit database configured,
-    # fallback to a writable SQLite database in the /tmp partition for instant demo support.
-    if IS_VERCEL and not user and not os.environ.get("DB_HOST"):
-        temp_db_path = Path(tempfile.gettempdir()) / "nidars.db"
-        return f"sqlite:///{temp_db_path.as_posix()}"
+    is_serverless = bool(
+        os.environ.get("VERCEL")
+        or os.environ.get("VERCEL_ENV")
+        or os.environ.get("AWS_LAMBDA_FUNCTION_NAME")
+        or os.environ.get("LAMBDA_TASK_ROOT")
+    )
+
+    # In serverless without a remote DB user/host, or locally without DB_USER,
+    # use SQLite in /tmp so it never fails on unreachable 127.0.0.1:3306.
+    if is_serverless or not user or host in ("127.0.0.1", "localhost") and not user:
+        if not user or host in ("127.0.0.1", "localhost", ""):
+            temp_db_path = Path(tempfile.gettempdir()) / "nidars.db"
+            return f"sqlite:///{temp_db_path.as_posix()}"
 
     user_str = user or ""
     host_str = host or "127.0.0.1"
