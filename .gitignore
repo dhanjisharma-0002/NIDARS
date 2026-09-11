@@ -18,11 +18,9 @@ build/
 *.sqlite3
 instance/
 migrations/versions/*.pyc
-*.pkl
 data/raw/*.csv
 data/processed/*.csv
 ml/flood/model/*.json
-ml/flood/model/*.pkl
 .env
 venv/
 __pycache__/

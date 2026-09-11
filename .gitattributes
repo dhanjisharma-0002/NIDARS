@@ -1,0 +1,4 @@
+ml/flood/model/flood_model.pkl filter=lfs diff=lfs merge=lfs -text
+ml/flood/model/flood_preprocessor.pkl filter=lfs diff=lfs merge=lfs -text
+ml/landslide/model/landslide_model.pkl filter=lfs diff=lfs merge=lfs -text
+ml/landslide/model/landslide_preprocessor.pkl filter=lfs diff=lfs merge=lfs -text
