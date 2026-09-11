@@ -12,21 +12,31 @@ IS_VERCEL = bool(os.environ.get("VERCEL") or os.environ.get("VERCEL_ENV"))
 
 
 def _resolve_database_uri() -> str:
-    """Resolve database URI supporting PostgreSQL, MySQL, and serverless SQLite fallback."""
-    db_url = os.environ.get("DATABASE_URL", "").strip()
+    """Resolve database URI supporting PostgreSQL, MySQL, and serverless database configuration."""
+    db_url = (
+        os.environ.get("DATABASE_URL", "").strip()
+        or os.environ.get("MYSQL_URL", "").strip()
+        or os.environ.get("POSTGRES_URL", "").strip()
+    )
     if db_url:
         # Standardize PostgreSQL URLs (Vercel Postgres, Neon, Supabase often use postgres://)
         if db_url.startswith("postgres://"):
             db_url = db_url.replace("postgres://", "postgresql+pg8000://", 1)
         elif db_url.startswith("postgresql://") and "+pg8000" not in db_url and "+psycopg2" not in db_url:
             db_url = db_url.replace("postgresql://", "postgresql+pg8000://", 1)
+        elif db_url.startswith("mysql://") and "+pymysql" not in db_url and "+mysqldb" not in db_url:
+            db_url = db_url.replace("mysql://", "mysql+pymysql://", 1)
         return db_url
 
     user = os.environ.get("DB_USER", "").strip()
     host = os.environ.get("DB_HOST", "").strip()
     password = quote_plus(os.environ.get("DB_PASSWORD", ""))
-    port = os.environ.get("DB_PORT", "3306")
-    name = os.environ.get("DB_NAME", "nidars_db")
+    port = os.environ.get("DB_PORT", "3306").strip() or "3306"
+    name = os.environ.get("DB_NAME", "nidars_db").strip() or "nidars_db"
+
+    # If DB credentials and remote host are explicitly provided
+    if user and host and host not in ("127.0.0.1", "localhost"):
+        return f"mysql+pymysql://{user}:{password}@{host}:{port}/{name}?charset=utf8mb4"
 
     is_serverless = bool(
         os.environ.get("VERCEL")
@@ -35,16 +45,17 @@ def _resolve_database_uri() -> str:
         or os.environ.get("LAMBDA_TASK_ROOT")
     )
 
-    # In serverless without a remote DB user/host, or locally without DB_USER,
-    # use SQLite in /tmp so it never fails on unreachable 127.0.0.1:3306.
-    if is_serverless or not user or host in ("127.0.0.1", "localhost") and not user:
-        if not user or host in ("127.0.0.1", "localhost", ""):
-            temp_db_path = Path(tempfile.gettempdir()) / "nidars.db"
-            return f"sqlite:///{temp_db_path.as_posix()}"
+    # In local environment with local MySQL configured
+    if not is_serverless and user:
+        host_str = host or "127.0.0.1"
+        return f"mysql+pymysql://{user}:{password}@{host_str}:{port}/{name}?charset=utf8mb4"
 
-    user_str = user or ""
-    host_str = host or "127.0.0.1"
-    return f"mysql+pymysql://{user_str}:{password}@{host_str}:{port}/{name}?charset=utf8mb4"
+    if is_serverless:
+        temp_db_path = Path(tempfile.gettempdir()) / "nidars.db"
+        return f"sqlite:///{temp_db_path.as_posix()}"
+
+    local_db_path = BASE_DIR / "nidars.db"
+    return f"sqlite:///{local_db_path.as_posix()}"
 
 
 def _get_float_env(name: str, default: float) -> float:

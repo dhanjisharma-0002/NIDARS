@@ -46,12 +46,18 @@ def register():
         try:
             db.session.add(user)
             db.session.commit()
+            saved_user = User.query.filter_by(email=email).first()
+            if not saved_user:
+                current_app.logger.warning("User verification query failed immediately after commit for: %s", email)
         except Exception:
             db.session.rollback()
             try:
                 db.create_all()
                 db.session.add(user)
                 db.session.commit()
+                saved_user = User.query.filter_by(email=email).first()
+                if not saved_user:
+                    current_app.logger.warning("User verification query failed after retry for: %s", email)
             except IntegrityError:
                 db.session.rollback()
                 flash("An account with this email already exists. Please log in.", "warning")

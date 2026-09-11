@@ -32,25 +32,54 @@ def map_view():
     return render_template("map.html")
 
 
-def _database_status():
+def _database_info():
     try:
-        db.session.execute(text("SELECT 1"))
-        return "connected"
-    except OperationalError:
+        from models import User
+        driver_name = db.engine.url.drivername
+        host = db.engine.url.host or "local"
+        database = db.engine.url.database or ""
+        dialect = db.engine.dialect.name
+        sanitized_uri = db.engine.url.render_as_string(hide_password=True)
+        users_count = db.session.query(User).count()
+        return {
+            "status": "connected",
+            "driver": driver_name,
+            "dialect": dialect,
+            "host": host,
+            "database": database,
+            "sanitized_uri": sanitized_uri,
+            "users_count": users_count,
+        }
+    except Exception as exc:
         db.session.rollback()
-        return "unavailable"
+        return {
+            "status": "unavailable",
+            "error": str(exc),
+        }
+
+
+def _database_status():
+    info = _database_info()
+    return info.get("status", "unavailable")
 
 
 @api_bp.route("/health")
 def health():
+    db_info = _database_info()
     return jsonify(
         {
             "status": "running",
             "application": "NIDARS",
             "message": "Application is running",
             "phase": 3,
-            "database": _database_status(),
-            "database_name": os.environ.get("DB_NAME", "nidars_db"),
+            "database": db_info.get("status", "unknown"),
+            "database_driver": db_info.get("driver", "unknown"),
+            "database_dialect": db_info.get("dialect", "unknown"),
+            "database_host": db_info.get("host", "unknown"),
+            "database_name": db_info.get("database", "unknown"),
+            "database_uri_sanitized": db_info.get("sanitized_uri", "unknown"),
+            "users_in_db": db_info.get("users_count", 0),
+            "environment": "vercel_serverless" if (os.environ.get("VERCEL") or os.environ.get("VERCEL_ENV")) else "local",
             "timestamp": datetime.now(timezone.utc).isoformat(),
         }
     )
