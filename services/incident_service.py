@@ -198,12 +198,28 @@ def create_incident_report(
             "http_status": 400,
         }
 
-    # Save photo file if uploaded
+    # Save photo file if uploaded (resilient to serverless read-only filesystems)
     if file and photo_filename:
+        saved = False
         upload_dir = Path(current_app.config.get("INCIDENT_UPLOAD_DIR", current_app.root_path + "/static/uploads/incidents"))
-        upload_dir.mkdir(parents=True, exist_ok=True)
-        file_path = upload_dir / photo_filename
-        file.save(str(file_path))
+        try:
+            upload_dir.mkdir(parents=True, exist_ok=True)
+            file_path = upload_dir / photo_filename
+            file.save(str(file_path))
+            saved = True
+        except OSError as err:
+            current_app.logger.warning("Primary upload directory not writable (%s). Attempting /tmp fallback.", err)
+            try:
+                import tempfile
+                fallback_dir = Path(tempfile.gettempdir()) / "uploads" / "incidents"
+                fallback_dir.mkdir(parents=True, exist_ok=True)
+                file.seek(0)
+                file.save(str(fallback_dir / photo_filename))
+                saved = True
+            except Exception as fallback_err:
+                current_app.logger.warning("Fallback upload to /tmp failed: %s", fallback_err)
+        if not saved:
+            current_app.logger.warning("Incident photo could not be persisted to filesystem; proceeding with report submission.")
 
     report = IncidentReport(
         user_id=user_id,

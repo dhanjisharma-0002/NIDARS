@@ -1,0 +1,42 @@
+# Vercel Deployment Ignore Rules
+# Exclude files from the serverless deployment bundle to keep size well under limits
+
+# Virtual environments
+venv/
+.venv/
+env/
+.env
+
+# Python bytecode & caches
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+
+# Git metadata
+.git/
+.github/
+
+# Development & testing files
+tests/
+scratch/
+benchmark.py
+prepare_flood_training.py
+prepare_landslide_training.py
+create_flood_labels.py
+create_landslide_labels.py
+check_flood_overlap.py
+verify_phase7_e2e.py
+pytest.ini
+PHASE_*.md
+
+# Large raw datasets (not used in web serving)
+data/raw/
+data/processed/*.csv
+
+# Local database files & logs
+*.log
+*.sqlite3
+*.db
+instance/

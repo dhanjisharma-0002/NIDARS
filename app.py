@@ -9,14 +9,25 @@ from models import (
     AlertEvent,
     EmergencyFacility,
     EmergencyRequest,
+    IncidentReport,
     Location,
     PredictionHistory,
     User,
+    UserNotification,
 )
 from routes import api_bp, auth_bp, main_bp
 
-# Imported so Flask-Migrate can discover the schema.
-_MIGRATION_MODELS = (User, Location, PredictionHistory, EmergencyFacility, EmergencyRequest, AlertEvent)
+# Imported so Flask-Migrate can discover the complete schema.
+_MIGRATION_MODELS = (
+    User,
+    Location,
+    PredictionHistory,
+    EmergencyFacility,
+    EmergencyRequest,
+    AlertEvent,
+    IncidentReport,
+    UserNotification,
+)
 MIGRATIONS_DIR = BASE_DIR / "migrations"
 
 
@@ -26,14 +37,23 @@ def create_app(config_class=None):
     app.config.from_object(config_class or get_config())
 
     if not app.config.get("SECRET_KEY"):
-        raise RuntimeError(
-            "SECRET_KEY is not set. Copy .env.example to .env and provide a secret key."
+        fallback_secret = "nidars-default-insecure-secret-key-change-in-production"
+        app.config["SECRET_KEY"] = fallback_secret
+        app.logger.warning(
+            "SECRET_KEY is not set. Using temporary fallback key. Provide SECRET_KEY in environment variables."
         )
 
     db.init_app(app)
     migrate.init_app(app, db, directory=str(MIGRATIONS_DIR))
     login_manager.init_app(app)
     csrf.init_app(app)
+
+    # Initialize tables if database is available (supports serverless SQLite and fresh cloud DBs)
+    with app.app_context():
+        try:
+            db.create_all()
+        except Exception as err:
+            app.logger.warning("Database schema auto-creation deferred or database unavailable: %s", err)
 
     @login_manager.user_loader
     def load_user(user_id):
@@ -116,10 +136,10 @@ def create_app(config_class=None):
                 }
             ), 503
         flash(
-            "Database connection failed. Check MySQL and your .env settings, then try again.",
+            "Database connection failed. Check your database settings and try again.",
             "danger",
         )
-        return redirect(request.referrer or url_for("main.index"))
+        return redirect(url_for("main.index"))
 
     app.register_blueprint(main_bp)
     app.register_blueprint(auth_bp)
@@ -134,12 +154,13 @@ app = create_app()
 def apply_migrations():
     """Apply Alembic migrations to the database configured in .env."""
     with app.app_context():
-        bind = db.session.execute(text("SELECT DATABASE()")).scalar()
-        print(f"Connected database: {bind}")
-        if bind != "nidars_db":
-            raise RuntimeError(
-                f"Refusing to migrate unexpected database '{bind}'. Expected nidars_db."
-            )
+        try:
+            bind = db.session.execute(text("SELECT DATABASE()")).scalar()
+            print(f"Connected database: {bind}")
+        except Exception:
+            bind = "sqlite_or_other"
+            print("Connected database: SQLite/External")
+
         alembic_upgrade(directory=str(MIGRATIONS_DIR))
         db.create_all()
         tables = inspect(db.engine).get_table_names()

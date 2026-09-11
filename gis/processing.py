@@ -50,6 +50,7 @@ STATE_FULL_NAMES = {
 }
 
 DEFAULT_WEATHER_FILE = Path(__file__).resolve().parent.parent / "data" / "processed" / "flood_labeled_weather.csv"
+FALLBACK_STATIONS_JSON = Path(__file__).resolve().parent / "geojson" / "stations_latest.json"
 
 
 def load_station_latest_observations(csv_path: Optional[Path | str] = None) -> pd.DataFrame:
@@ -63,6 +64,9 @@ def load_station_latest_observations(csv_path: Optional[Path | str] = None) -> p
         file_path = file_path.parent / "north_india_weather.csv"
 
     if not file_path.is_file():
+        # Fallback to bundled stations_latest.json for serverless/git deployments
+        if FALLBACK_STATIONS_JSON.is_file():
+            return pd.read_json(FALLBACK_STATIONS_JSON)
         raise FileNotFoundError(f"Weather dataset not found at {file_path}")
 
     df = pd.read_csv(file_path)

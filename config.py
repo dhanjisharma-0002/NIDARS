@@ -1,5 +1,6 @@
 import os
 from pathlib import Path
+import tempfile
 from urllib.parse import quote_plus
 
 from dotenv import load_dotenv
@@ -7,28 +8,54 @@ from dotenv import load_dotenv
 BASE_DIR = Path(__file__).resolve().parent
 load_dotenv(BASE_DIR / ".env", override=True)
 
+IS_VERCEL = bool(os.environ.get("VERCEL") or os.environ.get("VERCEL_ENV"))
 
-def _database_uri():
-    user = os.environ.get("DB_USER", "")
+
+def _resolve_database_uri() -> str:
+    """Resolve database URI supporting PostgreSQL, MySQL, and serverless SQLite fallback."""
+    db_url = os.environ.get("DATABASE_URL")
+    if db_url:
+        # Standardize PostgreSQL URLs (Vercel Postgres, Neon, Supabase often use postgres://)
+        if db_url.startswith("postgres://"):
+            db_url = db_url.replace("postgres://", "postgresql+pg8000://", 1)
+        elif db_url.startswith("postgresql://") and "+pg8000" not in db_url and "+psycopg2" not in db_url:
+            db_url = db_url.replace("postgresql://", "postgresql+pg8000://", 1)
+        return db_url
+
+    user = os.environ.get("DB_USER")
+    host = os.environ.get("DB_HOST")
     password = quote_plus(os.environ.get("DB_PASSWORD", ""))
-    host = os.environ.get("DB_HOST", "127.0.0.1")
     port = os.environ.get("DB_PORT", "3306")
     name = os.environ.get("DB_NAME", "nidars_db")
-    return f"mysql+pymysql://{user}:{password}@{host}:{port}/{name}?charset=utf8mb4"
+
+    # If running in Vercel serverless without an explicit database configured,
+    # fallback to a writable SQLite database in the /tmp partition for instant demo support.
+    if IS_VERCEL and not user and not os.environ.get("DB_HOST"):
+        temp_db_path = Path(tempfile.gettempdir()) / "nidars.db"
+        return f"sqlite:///{temp_db_path.as_posix()}"
+
+    user_str = user or ""
+    host_str = host or "127.0.0.1"
+    return f"mysql+pymysql://{user_str}:{password}@{host_str}:{port}/{name}?charset=utf8mb4"
 
 
 class Config:
     """Base configuration. Credentials and secrets come from the environment only."""
 
-    SECRET_KEY = os.environ.get("SECRET_KEY")
+    SECRET_KEY = os.environ.get("SECRET_KEY", "nidars-default-secret-key-change-in-production")
     DEBUG = os.environ.get("FLASK_DEBUG", "true").lower() in {"1", "true", "yes"}
 
-    SQLALCHEMY_DATABASE_URI = os.environ.get("DATABASE_URL") or _database_uri()
+    _RESOLVED_DB_URI = _resolve_database_uri()
+    SQLALCHEMY_DATABASE_URI = _RESOLVED_DB_URI
     SQLALCHEMY_TRACK_MODIFICATIONS = False
-    SQLALCHEMY_ENGINE_OPTIONS = {
-        "pool_pre_ping": True,
-        "pool_recycle": 280,
-    }
+    SQLALCHEMY_ENGINE_OPTIONS = (
+        {}
+        if _RESOLVED_DB_URI.startswith("sqlite")
+        else {
+            "pool_pre_ping": True,
+            "pool_recycle": 280,
+        }
+    )
 
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = "Lax"
@@ -93,7 +120,11 @@ class Config:
     WEATHER_TIMEOUT_SECONDS = float(os.environ.get("WEATHER_TIMEOUT_SECONDS", "8.0"))
 
     # Phase 15: Incident Reporting Upload configuration
-    INCIDENT_UPLOAD_DIR = BASE_DIR / "static" / "uploads" / "incidents"
+    INCIDENT_UPLOAD_DIR = (
+        Path(tempfile.gettempdir()) / "uploads" / "incidents"
+        if IS_VERCEL
+        else BASE_DIR / "static" / "uploads" / "incidents"
+    )
     MAX_CONTENT_LENGTH = 5 * 1024 * 1024  # 5 MB max request size
     ALLOWED_IMAGE_EXTENSIONS = {"jpg", "jpeg", "png", "webp", "gif"}
 

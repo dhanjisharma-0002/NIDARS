@@ -27,6 +27,6 @@ __pycache__/
 *.pyc
 *.log
 instance/
-.vscode/
-.idea/
 *.db
+static/uploads/incidents/incident_*
+
