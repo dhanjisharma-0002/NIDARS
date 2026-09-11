@@ -39,7 +39,7 @@
                     </div>
                 </div>
 
-                <form id="landslide-form" novalidate>
+                <form id="landslide-form" novalidate onsubmit="return false;">
                     <div class="row g-3">
                         <!-- Rainfall 24h -->
                         <div class="col-md-4">
@@ -116,7 +116,7 @@
 
                     <div class="d-flex justify-content-between align-items-center mt-4 pt-3 border-top border-secondary-subtle">
                         <span class="small text-muted" id="landslide-form-note">Fill all 9 parameters to evaluate landslide hazard.</span>
-                        <button class="btn btn-warning text-dark fw-bold btn-lg px-4" id="btn-predict-landslide" type="submit">
+                        <button class="btn btn-warning text-dark fw-bold btn-lg px-4" id="btn-predict-landslide" type="button">
                             <span>⛰️</span> EVALUATE LANDSLIDE RISK
                         </button>
                     </div>

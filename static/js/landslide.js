@@ -5,8 +5,9 @@
 (function () {
     "use strict";
 
-    var form = document.getElementById("landslide-form");
-    if (!form) return;
+    function getForm() {
+        return document.getElementById("landslide-form");
+    }
 
     function csrfToken() {
         var meta = document.querySelector('meta[name="csrf-token"]');
@@ -16,7 +17,8 @@
     function setStatus(text, ok) {
         var chip = document.getElementById("landslide-status-chip");
         if (!chip) return;
-        chip.querySelector("span:last-child").textContent = text;
+        var labelSpan = chip.querySelector("span:last-child");
+        if (labelSpan) labelSpan.textContent = text;
         chip.className = "system-status-pill " + (ok ? "online" : "offline");
     }
 
@@ -56,12 +58,16 @@
 
     // Presets Handlers
     function setupPresets() {
+        var form = getForm();
+        if (!form) return;
+
         var btnHimalayan = document.getElementById("preset-himalayan");
         var btnValley = document.getElementById("preset-valley");
         var btnPlains = document.getElementById("preset-plains");
 
         if (btnHimalayan) {
-            btnHimalayan.addEventListener("click", function () {
+            btnHimalayan.addEventListener("click", function (e) {
+                e.preventDefault();
                 form.rainfall_24h.value = "110.0";
                 form.rainfall_72h.value = "240.0";
                 form.rainfall_7d.value = "410.0";
@@ -71,11 +77,14 @@
                 form.elevation.value = "2276";
                 form.latitude.value = "31.1048"; // Shimla, HP
                 form.longitude.value = "77.1734";
+                var msg = document.getElementById("landslide-message");
+                if (msg) msg.textContent = "Loaded Himalayan high-risk scenario. Click EVALUATE to compute.";
             });
         }
 
         if (btnValley) {
-            btnValley.addEventListener("click", function () {
+            btnValley.addEventListener("click", function (e) {
+                e.preventDefault();
                 form.rainfall_24h.value = "45.0";
                 form.rainfall_72h.value = "95.0";
                 form.rainfall_7d.value = "160.0";
@@ -85,11 +94,14 @@
                 form.elevation.value = "2050";
                 form.latitude.value = "32.2432"; // Manali, HP
                 form.longitude.value = "77.1892";
+                var msg = document.getElementById("landslide-message");
+                if (msg) msg.textContent = "Loaded Valley moderate-risk scenario. Click EVALUATE to compute.";
             });
         }
 
         if (btnPlains) {
-            btnPlains.addEventListener("click", function () {
+            btnPlains.addEventListener("click", function (e) {
+                e.preventDefault();
                 form.rainfall_24h.value = "5.0";
                 form.rainfall_72h.value = "10.0";
                 form.rainfall_7d.value = "15.0";
@@ -99,6 +111,8 @@
                 form.elevation.value = "216";
                 form.latitude.value = "28.6139"; // Delhi
                 form.longitude.value = "77.2090";
+                var msg = document.getElementById("landslide-message");
+                if (msg) msg.textContent = "Loaded Plains low-risk scenario. Click EVALUATE to compute.";
             });
         }
     }
@@ -205,26 +219,41 @@
         });
     }
 
-    // Form Submission
-    form.addEventListener("submit", function (event) {
-        event.preventDefault();
-
-        var payload = {
-            rainfall_24h: form.rainfall_24h.value,
-            rainfall_72h: form.rainfall_72h.value,
-            rainfall_7d: form.rainfall_7d.value,
-            temperature: form.temperature.value,
-            wind_speed: form.wind_speed.value,
-            air_pressure: form.air_pressure.value,
-            elevation: form.elevation.value,
-            latitude: form.latitude.value,
-            longitude: form.longitude.value,
-        };
+    // Execute Landslide Prediction
+    function executePrediction() {
+        var form = getForm();
+        if (!form) return;
 
         var message = document.getElementById("landslide-message");
         var btnPredict = document.getElementById("btn-predict-landslide");
+
+        var payload = {
+            rainfall_24h: form.rainfall_24h.value.trim(),
+            rainfall_72h: form.rainfall_72h.value.trim(),
+            rainfall_7d: form.rainfall_7d.value.trim(),
+            temperature: form.temperature.value.trim(),
+            wind_speed: form.wind_speed.value.trim(),
+            air_pressure: form.air_pressure.value.trim(),
+            elevation: form.elevation.value.trim(),
+            latitude: form.latitude.value.trim(),
+            longitude: form.longitude.value.trim(),
+        };
+
+        // Validate that all fields have values
+        for (var key in payload) {
+            if (payload[key] === "") {
+                if (message) {
+                    message.innerHTML = '<span class="text-danger fw-bold">⚠️ Please fill in all 9 input parameters before evaluating.</span>';
+                }
+                return;
+            }
+        }
+
         if (message) message.textContent = "Computing Gradient Boosting landslide probability…";
-        if (btnPredict) btnPredict.disabled = true;
+        if (btnPredict) {
+            btnPredict.disabled = true;
+            btnPredict.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span> EVALUATING…';
+        }
 
         fetch("/api/predict/landslide", {
             method: "POST",
@@ -241,7 +270,10 @@
                 });
             })
             .then(function (result) {
-                if (btnPredict) btnPredict.disabled = false;
+                if (btnPredict) {
+                    btnPredict.disabled = false;
+                    btnPredict.innerHTML = '<span>⛰️</span> EVALUATE LANDSLIDE RISK';
+                }
                 var data = result.data;
                 setStatus("Model Status: " + (data.model_status || "unknown").toUpperCase(), data.model_status === "trained");
 
@@ -249,7 +281,7 @@
                     document.getElementById("landslide-probability").textContent = "—";
                     document.getElementById("landslide-risk").textContent = "Error";
                     document.getElementById("landslide-risk").className = "risk-badge critical";
-                    if (message) message.textContent = (data.errors || ["Prediction request failed."]).join(" ");
+                    if (message) message.innerHTML = '<span class="text-danger">' + (data.errors || ["Prediction request failed."]).join(" ") + '</span>';
                     var explainRow = document.getElementById("landslide-explainability-row");
                     if (explainRow) explainRow.style.display = "none";
                     return;
@@ -258,7 +290,7 @@
                 var prob = data.prediction.landslide_probability;
                 var risk = data.prediction.risk_level;
                 updateGauge(prob, risk);
-                if (message) message.textContent = data.threshold_note || "Landslide probability calculated.";
+                if (message) message.textContent = data.threshold_note || "Landslide probability calculated successfully.";
 
                 // Show PDF Report Download Button
                 var reportBtnBox = document.getElementById("landslide-report-btn-box");
@@ -288,16 +320,46 @@
                     renderExplainability(data.explainability);
                 }
             })
-            .catch(function () {
-                if (btnPredict) btnPredict.disabled = false;
-                if (message) message.textContent = "Unable to connect to the Landslide ML service.";
+            .catch(function (err) {
+                if (btnPredict) {
+                    btnPredict.disabled = false;
+                    btnPredict.innerHTML = '<span>⛰️</span> EVALUATE LANDSLIDE RISK';
+                }
+                if (message) {
+                    message.innerHTML = '<span class="text-danger fw-bold">⚠️ Unable to connect to the Landslide ML service. Please try again.</span>';
+                }
                 setStatus("Service Unreachable", false);
             });
-    });
+    }
 
-    document.addEventListener("DOMContentLoaded", function () {
+    function init() {
+        var form = getForm();
+        if (!form) return;
+
         setupPresets();
         setStatus("Gradient Boosting Classifier Active", true);
-    });
+
+        // Bind form submission event
+        form.addEventListener("submit", function (event) {
+            event.preventDefault();
+            executePrediction();
+            return false;
+        });
+
+        // Bind direct button click event
+        var btnPredict = document.getElementById("btn-predict-landslide");
+        if (btnPredict) {
+            btnPredict.addEventListener("click", function (event) {
+                event.preventDefault();
+                executePrediction();
+            });
+        }
+    }
+
+    if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", init);
+    } else {
+        init();
+    }
 })();
 

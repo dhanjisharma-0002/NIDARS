@@ -1,6 +1,6 @@
 from flask import jsonify, render_template, request
-from flask_login import login_required
 
+from extensions import csrf
 from routes.main import api_bp, main_bp
 from services.explainability_service import explain_from_payload
 from services.flood_service import predict_from_payload as predict_flood_payload
@@ -8,19 +8,17 @@ from services.landslide_service import predict_from_payload as predict_landslide
 
 
 @main_bp.route("/flood-prediction")
-@login_required
 def flood_prediction():
     return render_template("flood_prediction.html")
 
 
 @main_bp.route("/landslide")
-@login_required
 def landslide_prediction():
     return render_template("landslide_prediction.html")
 
 
 @api_bp.route("/predict/flood", methods=["POST"])
-@login_required
+@csrf.exempt
 def predict_flood():
     payload = request.get_json(silent=True)
     if payload is None:
@@ -39,7 +37,7 @@ def predict_flood():
 
 
 @api_bp.route("/predict/landslide", methods=["POST"])
-@login_required
+@csrf.exempt
 def predict_landslide():
     payload = request.get_json(silent=True)
     if payload is None:
@@ -58,7 +56,7 @@ def predict_landslide():
 
 
 @api_bp.route("/explain/<hazard_type>", methods=["POST"])
-@login_required
+@csrf.exempt
 def explain_hazard(hazard_type):
     payload = request.get_json(silent=True)
     if payload is None:
