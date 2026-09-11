@@ -25,13 +25,27 @@ try:
     from werkzeug.middleware.proxy_fix import ProxyFix
 
     class _VercelPathMiddleware:
-        """WSGI middleware to normalize PATH_INFO when running behind Vercel rewrites."""
+        """WSGI middleware to normalize PATH_INFO from Vercel rewrites."""
 
         def __init__(self, wsgi_app):
             self.wsgi_app = wsgi_app
 
         def __call__(self, environ, start_response):
-            # 1. Check direct URI / path headers from Vercel edge reverse proxy
+            import urllib.parse
+
+            # 1. Extract path from __vercel_path query parameter passed by vercel.json
+            query = environ.get("QUERY_STRING", "")
+            if "__vercel_path=" in query:
+                qs = urllib.parse.parse_qs(query, keep_blank_values=True)
+                if "__vercel_path" in qs and qs["__vercel_path"]:
+                    target_path = "/" + qs["__vercel_path"][0].lstrip("/")
+                    environ["PATH_INFO"] = target_path
+                    # Reconstruct query string without the routing parameter
+                    filtered = {k: v for k, v in qs.items() if k != "__vercel_path"}
+                    environ["QUERY_STRING"] = urllib.parse.urlencode(filtered, doseq=True)
+                    return self.wsgi_app(environ, start_response)
+
+            # 2. Check direct URI / path headers from Vercel reverse proxy
             for key in (
                 "RAW_URI",
                 "REQUEST_URI",
@@ -49,29 +63,7 @@ try:
                         environ["PATH_INFO"] = clean
                         return self.wsgi_app(environ, start_response)
 
-            # 2. Check route matches if Vercel passed captured regex group (e.g. 1=dashboard)
-            matches = environ.get("HTTP_X_NOW_ROUTE_MATCHES", "")
-            if matches:
-                import urllib.parse
-                parsed = urllib.parse.parse_qs(matches)
-                if "1" in parsed and parsed["1"]:
-                    captured = parsed["1"][0]
-                    if not captured.startswith("/"):
-                        captured = "/" + captured
-                    environ["PATH_INFO"] = captured
-                    return self.wsgi_app(environ, start_response)
-
-            # 3. Check HTTP_X_MATCHED_PATH
-            matched = environ.get("HTTP_X_MATCHED_PATH")
-            if matched:
-                clean = matched.split("?")[0].strip()
-                if clean and not (clean.startswith("/api/index") or clean in ("/api", "/api/")):
-                    if not clean.startswith("/"):
-                        clean = "/" + clean
-                    environ["PATH_INFO"] = clean
-                    return self.wsgi_app(environ, start_response)
-
-            # 4. Normalize if PATH_INFO still points to the serverless function path
+            # 3. Fallback normalization for root serverless invocation
             path_info = environ.get("PATH_INFO", "")
             for prefix in ("/api/index.py", "/api/index"):
                 if path_info == prefix or path_info == f"{prefix}/":
