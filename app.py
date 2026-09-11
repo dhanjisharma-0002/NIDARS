@@ -157,19 +157,47 @@ try:
                 self.wsgi_app = wsgi_app
 
             def __call__(self, environ, start_response):
-                # 1. Check if Vercel Edge Router passed the matched client path in headers
-                matched = (
-                    environ.get("HTTP_X_MATCHED_PATH")
-                    or environ.get("HTTP_X_FORWARDED_PATH")
-                    or environ.get("HTTP_X_FORWARDED_URI")
-                    or environ.get("HTTP_X_INVOKE_PATH")
-                )
-                if matched:
-                    clean_path = matched.split("?")[0]
-                    if clean_path and not clean_path.startswith("/api/index"):
-                        environ["PATH_INFO"] = clean_path
+                # 1. Check direct URI / path headers from Vercel edge reverse proxy
+                for key in (
+                    "RAW_URI",
+                    "REQUEST_URI",
+                    "HTTP_X_FORWARDED_URI",
+                    "HTTP_X_FORWARDED_PATH",
+                    "HTTP_X_INVOKE_PATH",
+                    "HTTP_X_REAL_PATH",
+                ):
+                    val = environ.get(key)
+                    if val:
+                        clean = val.split("?")[0].strip()
+                        if clean and not (clean.startswith("/api/index") or clean in ("/api", "/api/")):
+                            if not clean.startswith("/"):
+                                clean = "/" + clean
+                            environ["PATH_INFO"] = clean
+                            return self.wsgi_app(environ, start_response)
 
-                # 2. Normalize if PATH_INFO still points to the serverless function path
+                # 2. Check route matches if Vercel passed captured regex group (e.g. 1=dashboard)
+                matches = environ.get("HTTP_X_NOW_ROUTE_MATCHES", "")
+                if matches:
+                    import urllib.parse
+                    parsed = urllib.parse.parse_qs(matches)
+                    if "1" in parsed and parsed["1"]:
+                        captured = parsed["1"][0]
+                        if not captured.startswith("/"):
+                            captured = "/" + captured
+                        environ["PATH_INFO"] = captured
+                        return self.wsgi_app(environ, start_response)
+
+                # 3. Check HTTP_X_MATCHED_PATH
+                matched = environ.get("HTTP_X_MATCHED_PATH")
+                if matched:
+                    clean = matched.split("?")[0].strip()
+                    if clean and not (clean.startswith("/api/index") or clean in ("/api", "/api/")):
+                        if not clean.startswith("/"):
+                            clean = "/" + clean
+                        environ["PATH_INFO"] = clean
+                        return self.wsgi_app(environ, start_response)
+
+                # 4. Normalize if PATH_INFO still points to the serverless function path
                 path_info = environ.get("PATH_INFO", "")
                 for prefix in ("/api/index.py", "/api/index"):
                     if path_info == prefix or path_info == f"{prefix}/":
