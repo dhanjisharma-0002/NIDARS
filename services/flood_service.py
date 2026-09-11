@@ -81,6 +81,8 @@ def predict_from_payload(payload, persist=True):
         "prediction_id": pred_id,
         "id": pred_id,
         "prediction": prediction,
+        "probability": prediction.get("flood_probability"),
+        "risk_level": prediction.get("risk_level"),
         "explainability": explainability,
         "model_status": status,
         "input_summary": cleaned,
@@ -93,11 +95,13 @@ def predict_from_payload(payload, persist=True):
 
 
 def _store_history(cleaned, prediction, explainability=None):
-    user_id = current_user.id if getattr(current_user, "is_authenticated", False) else None
+    user_id = getattr(current_user, "id", None) if getattr(current_user, "is_authenticated", False) else None
+    prob_val = prediction.get("flood_probability") or prediction.get("probability", 0.0)
+    risk_lvl = prediction.get("risk_level", "LOW")
     result_data = {
         "inputs": cleaned,
-        "flood_probability": prediction["flood_probability"],
-        "risk_level": prediction["risk_level"],
+        "flood_probability": prob_val,
+        "risk_level": risk_lvl,
     }
     if explainability is not None:
         result_data["explainability"] = explainability
@@ -115,5 +119,12 @@ def _store_history(cleaned, prediction, explainability=None):
         return record.id
     except Exception:
         db.session.rollback()
-        current_app.logger.exception("Failed to store flood prediction history")
-        return None
+        try:
+            db.create_all()
+            db.session.add(record)
+            db.session.commit()
+            return record.id
+        except Exception:
+            db.session.rollback()
+            current_app.logger.exception("Failed to store flood prediction history")
+            return None
