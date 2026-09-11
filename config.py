@@ -90,6 +90,8 @@ class Config:
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = "Lax"
     WTF_CSRF_ENABLED = True
+    WTF_CSRF_SSL_STRICT = False
+    WTF_CSRF_TIME_LIMIT = None
 
     FLOOD_DATASET_PATH = BASE_DIR / "data" / "processed" / "flood_training.csv"
     FLOOD_MODEL_DIR = BASE_DIR / "ml" / "flood" / "model"

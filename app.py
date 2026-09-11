@@ -7,6 +7,8 @@ try:
     from sqlalchemy import inspect, text
     from sqlalchemy.exc import OperationalError
 
+    from werkzeug.middleware.proxy_fix import ProxyFix
+
     from config import BASE_DIR, get_config
     from extensions import csrf, db, login_manager, migrate
     from models import (
@@ -16,6 +18,8 @@ try:
         IncidentReport,
         Location,
         PredictionHistory,
+        ROLE_ADMIN,
+        ROLE_USER,
         User,
         UserNotification,
     )
@@ -33,6 +37,26 @@ try:
         UserNotification,
     )
     MIGRATIONS_DIR = BASE_DIR / "migrations"
+
+    def _seed_initial_accounts():
+        """Ensure standard demo/evaluation accounts exist if database is fresh."""
+        try:
+            accounts = [
+                ("Analyst User", "analyst@nidars.gov.in", "Analyst@2026", ROLE_USER),
+                ("Administrator", "admin@nidars.gov.in", "Admin@2026", ROLE_ADMIN),
+            ]
+            created = False
+            for name, email, pwd, role in accounts:
+                existing = User.query.filter_by(email=email).first()
+                if not existing:
+                    u = User(name=name, email=email, role=role)
+                    u.set_password(pwd)
+                    db.session.add(u)
+                    created = True
+            if created:
+                db.session.commit()
+        except Exception:
+            db.session.rollback()
 
     def create_app(config_class=None):
         """Application factory so later phases can register ML, GIS, and data modules cleanly."""
@@ -55,6 +79,7 @@ try:
         with app.app_context():
             try:
                 db.create_all()
+                _seed_initial_accounts()
             except Exception as err:
                 app.logger.warning("Database schema auto-creation deferred or database unavailable: %s", err)
 
