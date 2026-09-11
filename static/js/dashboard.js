@@ -292,7 +292,7 @@
 
         var bsModal = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
 
-        fetch("/api/prediction/" + predictionId + "/explain")
+        fetch("/api/prediction/" + encodeURIComponent(predictionId) + "/explain")
             .then(function (res) {
                 if (!res.ok) throw new Error("Could not fetch explanation details");
                 return res.json();
@@ -302,7 +302,7 @@
                     renderModalContent(data);
                     bsModal.show();
                 } else {
-                    if (window.NidarsToast) NidarsToast.show("Detailed SHAP explainability not available for this record.", "info");
+                    if (window.NidarsToast) NidarsToast.show("Detailed explainability not available for this record.", "info");
                 }
             })
             .catch(function (err) {
@@ -312,42 +312,124 @@
     }
 
     function renderModalContent(data) {
-        var pred = data.prediction || {};
+        var pred = data.prediction || data || {};
         var exp = data.explainability || {};
 
+        var hazardType = (pred.hazard_type || pred.prediction_type || data.prediction_type || "flood").toLowerCase();
+        var hazardTitle = hazardType === "flood" ? "Flood Risk Inundation" : (hazardType === "landslide" ? "Landslide Slope Hazard" : "Multi-Hazard Assessment");
+
         var hazardNameEl = document.getElementById("modal-hazard-name");
+        var hazardSubtitleEl = document.getElementById("modal-hazard-subtitle");
         var riskBadgeEl = document.getElementById("modal-risk-badge");
         var probValEl = document.getElementById("modal-probability-val");
 
-        if (hazardNameEl) hazardNameEl.textContent = (pred.hazard_type || "Flood") + " ML Model";
+        if (hazardNameEl) hazardNameEl.textContent = hazardTitle;
+        if (hazardSubtitleEl) hazardSubtitleEl.textContent = "Machine Learning Feature Attribution (" + (hazardType.toUpperCase()) + " Model)";
+
+        var riskLvl = (pred.risk_level || data.risk_level || "MODERATE").toUpperCase();
         if (riskBadgeEl) {
-            var lvl = (pred.risk_level || "MODERATE").toUpperCase();
-            riskBadgeEl.textContent = lvl;
-            riskBadgeEl.className = "risk-badge " + lvl.toLowerCase();
+            riskBadgeEl.textContent = riskLvl;
+            riskBadgeEl.className = "risk-badge " + riskLvl.toLowerCase();
         }
+
+        var prob = pred.probability != null ? pred.probability : (data.probability != null ? data.probability : null);
         if (probValEl) {
-            probValEl.textContent = pred.probability != null ? (pred.probability * 100).toFixed(1) + "%" : "Calibrated Risk";
+            probValEl.textContent = prob != null ? (Number(prob) * 100).toFixed(1) + "%" : "Calibrated Risk";
         }
 
         // Factors list
         var factorsList = document.getElementById("modal-factors-list");
-        if (factorsList && exp.top_factors) {
-            factorsList.innerHTML = exp.top_factors
-                .map(function (f) {
-                    var impactCls = (f.impact || "MODERATE").toLowerCase();
+        var factors = exp.top_contributing_factors || exp.top_factors || [];
+
+        if (factorsList) {
+            if (!factors || factors.length === 0) {
+                factorsList.innerHTML = '<div class="text-muted small p-2">No significant feature deviations from regional baseline.</div>';
+            } else {
+                factorsList.innerHTML = factors.map(function (f) {
+                    var impact = (f.impact || f.contribution_level || "MODERATE").toUpperCase();
+                    var impactCls = impact.toLowerCase();
+                    var dir = (f.direction || "").toUpperCase();
+                    var dirCls = dir === "POSITIVE" ? "positive" : (dir === "NEGATIVE" ? "negative" : "neutral");
+                    var dirLabel = f.direction_label || (dir === "POSITIVE" ? "▲ Increases Risk" : (dir === "NEGATIVE" ? "▼ Decreases Risk" : "• Neutral Baseline"));
+                    var val = f.current_value != null ? f.current_value : (f.observed_value != null ? f.observed_value : (f.value != null ? f.value : "—"));
+                    var unit = f.unit ? (" " + f.unit) : "";
+                    var name = f.label || f.feature_name || f.feature || "Environmental Metric";
+
                     return [
                         '<div class="factor-item-card">',
                         '  <div class="factor-header">',
-                        '    <span class="factor-name">' + f.label + '</span>',
-                        '    <span class="contrib-badge ' + impactCls + '">' + (f.impact || "MODERATE") + '</span>',
+                        '    <span class="factor-name">⚡ ' + name + '</span>',
+                        '    <span class="contrib-badge ' + impactCls + '">' + impact + '</span>',
                         '  </div>',
                         '  <div class="factor-details">',
-                        '    <span>Value: <strong>' + f.value + ' ' + (f.unit || '') + '</strong></span>',
+                        '    <span>Value: <strong>' + val + unit + '</strong></span>',
+                        '    <span class="direction-tag ' + dirCls + '">' + dirLabel + '</span>',
                         '  </div>',
                         '</div>',
                     ].join('');
-                })
-                .join('');
+                }).join('');
+            }
+        }
+
+        // Horizontal Bar Chart
+        var chartCanvas = document.getElementById("modal-explain-chart");
+        if (chartCanvas && typeof Chart !== "undefined") {
+            if (window.modalExplainChartInstance) {
+                window.modalExplainChartInstance.destroy();
+            }
+
+            var chartLabels = (exp.chart_data && exp.chart_data.labels)
+                ? exp.chart_data.labels
+                : factors.map(function (f) { return f.label || f.feature || "Feature"; });
+
+            var chartValues = (exp.chart_data && exp.chart_data.contributions)
+                ? exp.chart_data.contributions
+                : factors.map(function (f) { return Number(((f.contribution_score || 0) * 100).toFixed(1)); });
+
+            var chartColors = (exp.chart_data && exp.chart_data.colors)
+                ? exp.chart_data.colors
+                : factors.map(function (f) {
+                    return (f.direction === "POSITIVE") ? "#ef4444" : ((f.direction === "NEGATIVE") ? "#10b981" : "#94a3b8");
+                });
+
+            window.modalExplainChartInstance = new Chart(chartCanvas, {
+                type: "bar",
+                data: {
+                    labels: chartLabels,
+                    datasets: [{
+                        label: "Feature Influence (%)",
+                        data: chartValues,
+                        backgroundColor: chartColors,
+                        borderRadius: 4,
+                        borderSkipped: false,
+                    }]
+                },
+                options: {
+                    indexAxis: "y",
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function (ctx) {
+                                    return " Contribution: " + ctx.raw + "%";
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: { color: "rgba(255,255,255,0.06)" },
+                            ticks: { color: "#94a3b8", font: { size: 10 } }
+                        },
+                        y: {
+                            grid: { display: false },
+                            ticks: { color: "#e2e8f0", font: { size: 11, weight: "bold" } }
+                        }
+                    }
+                }
+            });
         }
     }
 
@@ -382,12 +464,12 @@
 
         var html = "";
         predictions.forEach(function (p) {
-            var hazard = p.prediction_type || "flood";
+            var hazard = p.prediction_type || p.hazard_type || "flood";
             var icon = hazard === "flood" ? "🌊" : (hazard === "landslide" ? "⛰️" : "🛣️");
             var title = hazard === "flood" ? "Flood Risk" : (hazard === "landslide" ? "Landslide Risk" : "Route Risk");
             var riskLvl = (p.risk_level || "LOW").toUpperCase();
             var badgeClass = riskLvl.toLowerCase();
-            var prob = p.probability != null ? (p.probability * 100).toFixed(1) + "%" : "—";
+            var prob = p.probability != null ? (Number(p.probability) * 100).toFixed(1) + "%" : "—";
             var coords = (p.inputs && p.inputs.latitude && p.inputs.longitude)
                 ? p.inputs.latitude.toFixed(2) + "°N, " + p.inputs.longitude.toFixed(2) + "°E"
                 : (p.location_name || "North India Grid");
@@ -438,7 +520,7 @@
             }
 
             var filtered = cachedPredictions.filter(function (p) {
-                var h = (p.prediction_type || "").toLowerCase();
+                var h = (p.prediction_type || p.hazard_type || "").toLowerCase();
                 var r = (p.risk_level || "").toLowerCase();
                 var loc = (p.location_name || "").toLowerCase();
                 return h.indexOf(q) !== -1 || r.indexOf(q) !== -1 || loc.indexOf(q) !== -1;
@@ -449,29 +531,27 @@
     }
 
     function populateDefaultTable() {
-        var tbody = document.getElementById("predictions-table-body");
-        if (!tbody) return;
-
-        tbody.innerHTML = [
-            '<tr>',
-            '  <td><strong>🌊 Flood Risk</strong></td>',
-            '  <td>26.85°N, 80.95°E (Lucknow Grid)</td>',
-            '  <td><span class="risk-badge low">LOW</span></td>',
-            '  <td><strong>14.2%</strong></td>',
-            '  <td><span class="badge bg-success bg-opacity-25 text-success">Completed</span></td>',
-            '  <td class="text-muted small">Recent Observation</td>',
-            '  <td class="text-end"><button class="btn btn-xs btn-outline-info" onclick="window.location.href=\'/flood-prediction\'">⚡ New Run</button></td>',
-            '</tr>',
-            '<tr>',
-            '  <td><strong>⛰️ Landslide Risk</strong></td>',
-            '  <td>31.10°N, 77.17°E (Shimla Corridor)</td>',
-            '  <td><span class="risk-badge moderate">MODERATE</span></td>',
-            '  <td><strong>3.8%</strong></td>',
-            '  <td><span class="badge bg-success bg-opacity-25 text-success">Completed</span></td>',
-            '  <td class="text-muted small">Recent Observation</td>',
-            '  <td class="text-end"><button class="btn btn-xs btn-outline-info" onclick="window.location.href=\'/landslide\'">⚡ New Run</button></td>',
-            '</tr>',
-        ].join('');
+        cachedPredictions = [
+            {
+                id: 1,
+                prediction_type: "flood",
+                hazard_type: "flood",
+                risk_level: "MODERATE",
+                probability: 0.428,
+                location_name: "Lucknow Inundation Sector (26.85°N, 80.95°E)",
+                created_at: new Date().toISOString()
+            },
+            {
+                id: 2,
+                prediction_type: "landslide",
+                hazard_type: "landslide",
+                risk_level: "HIGH",
+                probability: 0.684,
+                location_name: "Shimla Slope Corridor (31.10°N, 77.17°E)",
+                created_at: new Date().toISOString()
+            }
+        ];
+        renderPredictionsTable(cachedPredictions);
     }
 
     document.addEventListener("DOMContentLoaded", function () {
