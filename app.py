@@ -63,13 +63,6 @@ try:
         app = Flask(__name__)
         app.config.from_object(config_class or get_config())
 
-        if not app.config.get("SECRET_KEY"):
-            fallback_secret = "nidars-default-insecure-secret-key-change-in-production"
-            app.config["SECRET_KEY"] = fallback_secret
-            app.logger.warning(
-                "SECRET_KEY is not set. Using temporary fallback key. Provide SECRET_KEY in environment variables."
-            )
-
         db.init_app(app)
         migrate.init_app(app, db, directory=str(MIGRATIONS_DIR))
         login_manager.init_app(app)

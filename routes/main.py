@@ -72,6 +72,8 @@ def health():
             "application": "NIDARS",
             "message": "Application is running",
             "phase": 3,
+            "secret_key_configured": bool(os.environ.get("SECRET_KEY", "").strip()),
+            "secret_key_loaded": True,
             "database": db_info.get("status", "unknown"),
             "database_driver": db_info.get("driver", "unknown"),
             "database_dialect": db_info.get("dialect", "unknown"),

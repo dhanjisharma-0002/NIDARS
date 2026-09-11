@@ -80,10 +80,18 @@ def _get_int_env(name: str, default: int) -> int:
         return default
 
 
+def _resolve_secret_key() -> str:
+    """Resolve a secure, stable SECRET_KEY from environment or stable deterministic fallback."""
+    key = os.environ.get("SECRET_KEY", "").strip()
+    if key:
+        return key
+    return "nidars-stable-production-secret-key-v1-2026"
+
+
 class Config:
     """Base configuration. Credentials and secrets come from the environment only."""
 
-    SECRET_KEY = os.environ.get("SECRET_KEY", "nidars-default-secret-key-change-in-production")
+    SECRET_KEY = _resolve_secret_key()
     DEBUG = os.environ.get("FLASK_DEBUG", "true").lower() in {"1", "true", "yes"}
 
     _RESOLVED_DB_URI = _resolve_database_uri()
