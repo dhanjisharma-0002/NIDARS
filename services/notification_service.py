@@ -277,7 +277,11 @@ def send_email_notification(
         logger.info("Email notification skipped: MAIL_SERVER environment variable not configured.")
         return False, "MAIL_SERVER not configured"
 
-    mail_port = int(os.environ.get("MAIL_PORT", 587))
+    raw_port = os.environ.get("MAIL_PORT", "")
+    try:
+        mail_port = int(raw_port) if raw_port and str(raw_port).strip() else 587
+    except (ValueError, TypeError):
+        mail_port = 587
     mail_user = os.environ.get("MAIL_USERNAME")
     mail_pass = os.environ.get("MAIL_PASSWORD")
     mail_sender = os.environ.get("MAIL_DEFAULT_SENDER", "nidars-alerts@nidars.gov.in")

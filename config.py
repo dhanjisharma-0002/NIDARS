@@ -47,6 +47,28 @@ def _resolve_database_uri() -> str:
     return f"mysql+pymysql://{user_str}:{password}@{host_str}:{port}/{name}?charset=utf8mb4"
 
 
+def _get_float_env(name: str, default: float) -> float:
+    """Safely parse float from environment variable, handling None, empty strings, and invalid inputs."""
+    raw = os.environ.get(name, "")
+    if raw is None or str(raw).strip() == "":
+        return default
+    try:
+        return float(raw)
+    except (ValueError, TypeError):
+        return default
+
+
+def _get_int_env(name: str, default: int) -> int:
+    """Safely parse int from environment variable, handling None, empty strings, and invalid inputs."""
+    raw = os.environ.get(name, "")
+    if raw is None or str(raw).strip() == "":
+        return default
+    try:
+        return int(raw)
+    except (ValueError, TypeError):
+        return default
+
+
 class Config:
     """Base configuration. Credentials and secrets come from the environment only."""
 
@@ -99,33 +121,33 @@ class Config:
     GIS_COMBINED_RISK_HIGH_MAX = 0.75
 
     # Phase 6: Safe Route Optimization configuration
-    OSRM_BASE_URL = os.environ.get("OSRM_BASE_URL", "https://router.project-osrm.org")
-    ROUTE_PROFILE = os.environ.get("ROUTE_PROFILE", "driving")
-    ROUTE_STATION_RADIUS_KM = float(os.environ.get("ROUTE_STATION_RADIUS_KM", "50.0"))
-    ROUTE_SAMPLE_INTERVAL_KM = float(os.environ.get("ROUTE_SAMPLE_INTERVAL_KM", "1.0"))
-    ROUTE_RISK_PENALTY_FACTOR = float(os.environ.get("ROUTE_RISK_PENALTY_FACTOR", "10.0"))
-    ROUTE_MIN_CONFIDENCE_COVERAGE = float(os.environ.get("ROUTE_MIN_CONFIDENCE_COVERAGE", "30.0"))
-    OSRM_TIMEOUT_SECONDS = float(os.environ.get("OSRM_TIMEOUT_SECONDS", "10.0"))
+    OSRM_BASE_URL = os.environ.get("OSRM_BASE_URL") or "https://router.project-osrm.org"
+    ROUTE_PROFILE = os.environ.get("ROUTE_PROFILE") or "driving"
+    ROUTE_STATION_RADIUS_KM = _get_float_env("ROUTE_STATION_RADIUS_KM", 50.0)
+    ROUTE_SAMPLE_INTERVAL_KM = _get_float_env("ROUTE_SAMPLE_INTERVAL_KM", 1.0)
+    ROUTE_RISK_PENALTY_FACTOR = _get_float_env("ROUTE_RISK_PENALTY_FACTOR", 10.0)
+    ROUTE_MIN_CONFIDENCE_COVERAGE = _get_float_env("ROUTE_MIN_CONFIDENCE_COVERAGE", 30.0)
+    OSRM_TIMEOUT_SECONDS = _get_float_env("OSRM_TIMEOUT_SECONDS", 10.0)
 
     # Phase 7: Emergency Mode & Facility Discovery configuration
-    OVERPASS_BASE_URL = os.environ.get("OVERPASS_BASE_URL", "https://overpass-api.de/api/interpreter")
-    EMERGENCY_SEARCH_RADIUS_KM = float(os.environ.get("EMERGENCY_SEARCH_RADIUS_KM", "15.0"))
-    EMERGENCY_MAX_RESULTS = int(os.environ.get("EMERGENCY_MAX_RESULTS", "25"))
-    OVERPASS_TIMEOUT_SECONDS = float(os.environ.get("OVERPASS_TIMEOUT_SECONDS", "12.0"))
+    OVERPASS_BASE_URL = os.environ.get("OVERPASS_BASE_URL") or "https://overpass-api.de/api/interpreter"
+    EMERGENCY_SEARCH_RADIUS_KM = _get_float_env("EMERGENCY_SEARCH_RADIUS_KM", 15.0)
+    EMERGENCY_MAX_RESULTS = _get_int_env("EMERGENCY_MAX_RESULTS", 25)
+    OVERPASS_TIMEOUT_SECONDS = _get_float_env("OVERPASS_TIMEOUT_SECONDS", 12.0)
 
     # Phase 14: Emergency Evacuation & Safe Zone Analysis configuration
-    EVACUATION_MAX_CANDIDATES = int(os.environ.get("EVACUATION_MAX_CANDIDATES", "5"))
-    EVACUATION_MAX_DISTANCE_KM = float(os.environ.get("EVACUATION_MAX_DISTANCE_KM", "25.0"))
-    EVACUATION_WEIGHT_DEST_RISK = float(os.environ.get("EVACUATION_WEIGHT_DEST_RISK", "0.40"))
-    EVACUATION_WEIGHT_ROUTE_RISK = float(os.environ.get("EVACUATION_WEIGHT_ROUTE_RISK", "0.35"))
-    EVACUATION_WEIGHT_DISTANCE = float(os.environ.get("EVACUATION_WEIGHT_DISTANCE", "0.20"))
-    EVACUATION_WEIGHT_TYPE = float(os.environ.get("EVACUATION_WEIGHT_TYPE", "0.05"))
+    EVACUATION_MAX_CANDIDATES = _get_int_env("EVACUATION_MAX_CANDIDATES", 5)
+    EVACUATION_MAX_DISTANCE_KM = _get_float_env("EVACUATION_MAX_DISTANCE_KM", 25.0)
+    EVACUATION_WEIGHT_DEST_RISK = _get_float_env("EVACUATION_WEIGHT_DEST_RISK", 0.40)
+    EVACUATION_WEIGHT_ROUTE_RISK = _get_float_env("EVACUATION_WEIGHT_ROUTE_RISK", 0.35)
+    EVACUATION_WEIGHT_DISTANCE = _get_float_env("EVACUATION_WEIGHT_DISTANCE", 0.20)
+    EVACUATION_WEIGHT_TYPE = _get_float_env("EVACUATION_WEIGHT_TYPE", 0.05)
 
     # Phase 9: Real-Time Weather Monitoring configuration
     WEATHER_API_KEY = os.environ.get("WEATHER_API_KEY", "")
-    WEATHER_PROVIDER = os.environ.get("WEATHER_PROVIDER", "open-meteo")
-    WEATHER_API_BASE_URL = os.environ.get("WEATHER_API_BASE_URL", "https://api.open-meteo.com/v1/forecast")
-    WEATHER_TIMEOUT_SECONDS = float(os.environ.get("WEATHER_TIMEOUT_SECONDS", "8.0"))
+    WEATHER_PROVIDER = os.environ.get("WEATHER_PROVIDER") or "open-meteo"
+    WEATHER_API_BASE_URL = os.environ.get("WEATHER_API_BASE_URL") or "https://api.open-meteo.com/v1/forecast"
+    WEATHER_TIMEOUT_SECONDS = _get_float_env("WEATHER_TIMEOUT_SECONDS", 8.0)
 
     # Phase 15: Incident Reporting Upload configuration
     INCIDENT_UPLOAD_DIR = (
