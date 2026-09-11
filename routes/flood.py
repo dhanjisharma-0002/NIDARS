@@ -20,56 +20,85 @@ def landslide_prediction():
 @api_bp.route("/predict/flood", methods=["POST"])
 @csrf.exempt
 def predict_flood():
-    payload = request.get_json(silent=True)
-    if payload is None:
-        return jsonify(
-            {
-                "success": False,
-                "errors": ["Request body must be JSON."],
-                "model_status": "unknown",
-                "prediction": None,
-            }
-        ), 400
+    try:
+        payload = request.get_json(silent=True)
+        if payload is None:
+            return jsonify(
+                {
+                    "success": False,
+                    "errors": ["Request body must be JSON."],
+                    "model_status": "unknown",
+                    "prediction": None,
+                }
+            ), 400
 
-    result = predict_flood_payload(payload)
-    status = result.pop("http_status", 200 if result["success"] else 400)
-    return jsonify(result), status
+        result = predict_flood_payload(payload)
+        status = result.pop("http_status", 200 if result["success"] else 400)
+        return jsonify(result), status
+    except Exception as exc:
+        import traceback
+        return jsonify({
+            "success": False,
+            "errors": [f"Prediction Engine Error: {str(exc)}"],
+            "model_status": "error",
+            "prediction": None,
+            "traceback": traceback.format_exc(),
+        }), 500
 
 
 @api_bp.route("/predict/landslide", methods=["POST"])
 @csrf.exempt
 def predict_landslide():
-    payload = request.get_json(silent=True)
-    if payload is None:
-        return jsonify(
-            {
-                "success": False,
-                "errors": ["Request body must be JSON."],
-                "model_status": "unknown",
-                "prediction": None,
-            }
-        ), 400
+    try:
+        payload = request.get_json(silent=True)
+        if payload is None:
+            return jsonify(
+                {
+                    "success": False,
+                    "errors": ["Request body must be JSON."],
+                    "model_status": "unknown",
+                    "prediction": None,
+                }
+            ), 400
 
-    result = predict_landslide_payload(payload)
-    status = result.pop("http_status", 200 if result["success"] else 400)
-    return jsonify(result), status
+        result = predict_landslide_payload(payload)
+        status = result.pop("http_status", 200 if result["success"] else 400)
+        return jsonify(result), status
+    except Exception as exc:
+        import traceback
+        return jsonify({
+            "success": False,
+            "errors": [f"Prediction Engine Error: {str(exc)}"],
+            "model_status": "error",
+            "prediction": None,
+            "traceback": traceback.format_exc(),
+        }), 500
 
 
 @api_bp.route("/explain/<hazard_type>", methods=["POST"])
 @csrf.exempt
 def explain_hazard(hazard_type):
-    payload = request.get_json(silent=True)
-    if payload is None:
-        return jsonify(
-            {
-                "success": False,
-                "errors": ["Request body must be JSON."],
-                "hazard_type": hazard_type,
-            }
-        ), 400
+    try:
+        payload = request.get_json(silent=True)
+        if payload is None:
+            return jsonify(
+                {
+                    "success": False,
+                    "errors": ["Request body must be JSON."],
+                    "hazard_type": hazard_type,
+                }
+            ), 400
 
-    result = explain_from_payload(hazard_type, payload)
-    status = result.pop("http_status", 200 if result["success"] else 400)
-    return jsonify(result), status
+        result = explain_from_payload(hazard_type, payload)
+        status = result.pop("http_status", 200 if result["success"] else 400)
+        return jsonify(result), status
+    except Exception as exc:
+        import traceback
+        return jsonify({
+            "success": False,
+            "errors": [f"Explainability Error: {str(exc)}"],
+            "hazard_type": hazard_type,
+            "traceback": traceback.format_exc(),
+        }), 500
 
 
