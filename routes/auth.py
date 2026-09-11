@@ -20,30 +20,47 @@ def register():
 
     form = RegisterForm()
     if form.validate_on_submit():
-        email = form.email.data.strip().lower()
+        email = (form.email.data or "").strip().lower()
         try:
             existing = User.query.filter_by(email=email).first()
-            if existing:
-                flash("An account with this email already exists. Please log in.", "warning")
-                return redirect(url_for("auth.login"))
+        except Exception:
+            db.session.rollback()
+            try:
+                db.create_all()
+                existing = User.query.filter_by(email=email).first()
+            except Exception:
+                db.session.rollback()
+                existing = None
 
-            user = User(
-                name=form.name.data.strip(),
-                email=email,
-                role=ROLE_USER,
-            )
-            user.set_password(form.password.data)
-            db.session.add(user)
-            db.session.commit()
-        except OperationalError:
-            db.session.rollback()
-            current_app.logger.exception("Registration failed: database unavailable")
-            flash(_database_unavailable_message(), "danger")
-            return render_template("register.html", form=form)
-        except IntegrityError:
-            db.session.rollback()
+        if existing:
             flash("An account with this email already exists. Please log in.", "warning")
             return redirect(url_for("auth.login"))
+
+        user = User(
+            name=(form.name.data or "").strip(),
+            email=email,
+            role=ROLE_USER,
+        )
+        user.set_password(form.password.data)
+
+        try:
+            db.session.add(user)
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+            try:
+                db.create_all()
+                db.session.add(user)
+                db.session.commit()
+            except IntegrityError:
+                db.session.rollback()
+                flash("An account with this email already exists. Please log in.", "warning")
+                return redirect(url_for("auth.login"))
+            except Exception as exc:
+                db.session.rollback()
+                current_app.logger.exception("Registration failed: %s", exc)
+                flash(_database_unavailable_message(), "danger")
+                return render_template("register.html", form=form)
 
         flash("Account created. You can now log in.", "success")
         return redirect(url_for("auth.login"))
@@ -58,13 +75,20 @@ def login():
 
     form = LoginForm()
     if form.validate_on_submit():
-        email = form.email.data.strip().lower()
+        email = (form.email.data or "").strip().lower()
+        user = None
         try:
             user = User.query.filter_by(email=email).first()
-        except OperationalError:
-            current_app.logger.exception("Login failed: database unavailable")
-            flash(_database_unavailable_message(), "danger")
-            return render_template("login.html", form=form)
+        except Exception:
+            db.session.rollback()
+            try:
+                db.create_all()
+                user = User.query.filter_by(email=email).first()
+            except Exception:
+                db.session.rollback()
+                current_app.logger.exception("Login lookup failed due to database error")
+                flash(_database_unavailable_message(), "danger")
+                return render_template("login.html", form=form)
 
         if user is None or not user.check_password(form.password.data):
             flash("Invalid email or password.", "danger")
