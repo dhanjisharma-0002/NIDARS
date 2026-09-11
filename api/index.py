@@ -22,6 +22,39 @@ os.environ.setdefault("VERCEL", "1")
 try:
     from app import app as _app
 
+    from werkzeug.middleware.proxy_fix import ProxyFix
+
+    class _VercelPathMiddleware:
+        """WSGI middleware to normalize PATH_INFO when running behind Vercel rewrites."""
+
+        def __init__(self, wsgi_app):
+            self.wsgi_app = wsgi_app
+
+        def __call__(self, environ, start_response):
+            # 1. Check if Vercel Edge Router passed the matched client path in headers
+            matched = (
+                environ.get("HTTP_X_MATCHED_PATH")
+                or environ.get("HTTP_X_FORWARDED_PATH")
+                or environ.get("HTTP_X_FORWARDED_URI")
+                or environ.get("HTTP_X_INVOKE_PATH")
+            )
+            if matched:
+                clean_path = matched.split("?")[0]
+                if clean_path and not clean_path.startswith("/api/index"):
+                    environ["PATH_INFO"] = clean_path
+
+            # 2. Normalize if PATH_INFO still points to the serverless function path
+            path_info = environ.get("PATH_INFO", "")
+            for prefix in ("/api/index.py", "/api/index"):
+                if path_info == prefix or path_info == f"{prefix}/":
+                    environ["PATH_INFO"] = "/"
+                    break
+                elif path_info.startswith(prefix + "/"):
+                    environ["PATH_INFO"] = path_info[len(prefix):]
+                    break
+
+            return self.wsgi_app(environ, start_response)
+
     # Wrap WSGI app to catch any unhandled request exceptions and display readable diagnostics
     class _WSGIDiagnosticMiddleware:
         def __init__(self, wsgi_app):
@@ -49,7 +82,12 @@ try:
                 )
                 return [body]
 
-    _app.wsgi_app = _WSGIDiagnosticMiddleware(_app.wsgi_app)
+    # Apply middleware chain: Diagnostic -> Path Normalization -> ProxyFix -> Flask WSGI
+    _app.wsgi_app = _WSGIDiagnosticMiddleware(
+        _VercelPathMiddleware(
+            ProxyFix(_app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_port=1, x_prefix=1)
+        )
+    )
     app = _app
 
 except Exception:
