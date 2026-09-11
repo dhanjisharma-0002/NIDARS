@@ -90,7 +90,7 @@ def predict_from_payload(payload, persist=True):
 
 
 def _store_history(cleaned, prediction, explainability=None):
-    user_id = current_user.id if current_user.is_authenticated else None
+    user_id = current_user.id if getattr(current_user, "is_authenticated", False) else None
     result_data = {
         "inputs": cleaned,
         "flood_probability": prediction["flood_probability"],
