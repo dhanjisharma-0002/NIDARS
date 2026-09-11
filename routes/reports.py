@@ -7,14 +7,14 @@ import re
 from flask import Blueprint, Response, jsonify, request
 from flask_login import current_user, login_required
 
-from extensions import db
+from extensions import csrf, db
 from models.prediction import PredictionHistory
 from routes.main import api_bp
 from services.report_service import generate_disaster_pdf_report
 
 
 @api_bp.route("/reports/disaster", methods=["GET", "POST"])
-@login_required
+@csrf.exempt
 def generate_disaster_report():
     """Generate a downloadable PDF disaster intelligence briefing report."""
     if request.method == "POST":
@@ -33,7 +33,12 @@ def generate_disaster_report():
             }), 400
         try:
             pred_id_int = int(raw_id)
-            pred = db.session.get(PredictionHistory, pred_id_int)
+            pred = None
+            try:
+                pred = db.session.get(PredictionHistory, pred_id_int)
+            except Exception:
+                db.session.rollback()
+
             if not pred:
                 return jsonify({
                     "success": False,
@@ -42,8 +47,11 @@ def generate_disaster_report():
                 }), 404
 
             # Authorization check: regular users can only access their own records or unassigned records
-            if pred.user_id is not None and current_user.is_authenticated:
-                if not current_user.is_admin() and pred.user_id != current_user.id:
+            if pred.user_id is not None and getattr(current_user, "is_authenticated", False):
+                is_admin = getattr(current_user, "is_admin", lambda: False)
+                if callable(is_admin):
+                    is_admin = is_admin()
+                if not is_admin and pred.user_id != getattr(current_user, "id", None):
                     return jsonify({
                         "success": False,
                         "error": "UNAUTHORIZED",

@@ -12,14 +12,12 @@ from services.routing_service import fetch_osrm_routes, validate_coordinates
 
 
 @main_bp.route("/route-optimizer")
-@login_required
 def route_optimizer_view():
     """Render the interactive Safe Route Optimization page."""
     return render_template("route_optimizer.html")
 
 
 @api_bp.route("/routing/route", methods=["GET"])
-@login_required
 def get_optimized_route():
     """Find road routes between origin and destination, evaluate disaster risk exposure, and recommend safe routes.
 

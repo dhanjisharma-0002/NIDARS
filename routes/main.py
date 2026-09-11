@@ -23,7 +23,6 @@ def index():
 
 
 @main_bp.route("/dashboard")
-@login_required
 def dashboard():
     return render_template("dashboard.html")
 
@@ -58,7 +57,6 @@ def health():
 
 
 @api_bp.route("/predictions/recent", methods=["GET"])
-@login_required
 def recent_predictions():
     """Retrieve recent predictions for the dashboard table with explainability data."""
     limit = min(50, max(1, request.args.get("limit", 10, type=int)))
@@ -95,7 +93,6 @@ def recent_predictions():
 
 
 @api_bp.route("/prediction/<int:prediction_id>/explain", methods=["GET"])
-@login_required
 def explain_saved_prediction(prediction_id):
     """Retrieve or compute explainability for a specific historical prediction."""
     record = db.session.get(PredictionHistory, prediction_id)

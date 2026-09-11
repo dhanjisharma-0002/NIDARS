@@ -23,14 +23,12 @@ VALID_FACILITY_QUERY_TYPES = {"hospital", "police", "shelter", "all"}
 
 
 @main_bp.route("/emergency")
-@login_required
 def emergency_view():
     """Render the interactive Emergency Mode page."""
     return render_template("emergency.html")
 
 
 @api_bp.route("/emergency/risk", methods=["GET"])
-@login_required
 def get_emergency_risk():
     """Retrieve localized disaster risk exposure for user coordinates."""
     coords, errors = validate_emergency_coordinates(
@@ -71,7 +69,6 @@ def get_emergency_risk():
 
 
 @api_bp.route("/emergency/facilities", methods=["GET"])
-@login_required
 def get_emergency_facilities():
     """Discover authentic nearby hospitals, police stations, and shelters within radius."""
     coords, errors = validate_emergency_coordinates(
@@ -162,7 +159,6 @@ def get_emergency_facilities():
 
 
 @api_bp.route("/emergency/nearest", methods=["GET"])
-@login_required
 def get_nearest_emergency_facility():
     """Find the nearest facility and provide a disaster-risk-aware ranking."""
     coords, errors = validate_emergency_coordinates(
@@ -250,7 +246,6 @@ def get_nearest_emergency_facility():
 
 
 @api_bp.route("/emergency/route", methods=["GET"])
-@login_required
 def get_emergency_route():
     """Calculate an emergency safe route from user location to chosen facility reusing Phase 6 routing engine."""
     coords, coord_errors = validate_coordinates(
@@ -338,7 +333,6 @@ def get_emergency_route():
 
 @api_bp.route("/emergency/evacuation", methods=["GET", "POST"])
 @csrf.exempt
-@login_required
 def post_emergency_evacuation():
     """Phase 14: Production-style Emergency Evacuation & Safe Zone Analysis API.
 

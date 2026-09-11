@@ -15,7 +15,6 @@ from services.simulator_service import (
 
 
 @main_bp.route("/simulator")
-@login_required
 def simulator_view():
     """Render the interactive What-If Disaster Risk Simulator."""
     presets = get_simulation_presets()
@@ -28,7 +27,6 @@ def simulator_view():
 
 
 @api_bp.route("/simulator/presets", methods=["GET"])
-@login_required
 def get_presets():
     """Retrieve available simulation presets and genuine station baselines."""
     return jsonify({
@@ -39,7 +37,6 @@ def get_presets():
 
 
 @api_bp.route("/simulator/simulate", methods=["POST"])
-@login_required
 @csrf.exempt
 def simulate_scenario():
     """Run what-if disaster risk simulation comparing current baseline and scenario conditions.

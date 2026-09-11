@@ -20,7 +20,6 @@ VALID_STATES = {"JK", "HP", "UP", "BR", "ALL"}
 
 
 @api_bp.route("/gis/risk", methods=["GET"])
-@login_required
 def get_gis_risk():
     """Expose spatial disaster risk GeoJSON FeatureCollection.
 
@@ -108,7 +107,6 @@ def get_gis_risk():
 
 
 @api_bp.route("/gis/stats", methods=["GET"])
-@login_required
 def get_gis_stats():
     """Retrieve live computed spatial risk statistics across stations."""
     hazard = request.args.get("hazard", "combined").strip().lower()
@@ -132,7 +130,6 @@ def get_gis_stats():
 
 
 @api_bp.route("/gis/facilities", methods=["GET"])
-@login_required
 def get_gis_facilities():
     """Retrieve authentic emergency facilities (hospitals, police, shelters) as GeoJSON."""
     f_type = request.args.get("type", "all").strip().lower()
@@ -151,7 +148,6 @@ def get_gis_facilities():
 
 
 @api_bp.route("/gis/rivers", methods=["GET"])
-@login_required
 def get_gis_rivers():
     """Retrieve authentic hydrography river line vectors as GeoJSON."""
     try:
@@ -162,7 +158,6 @@ def get_gis_rivers():
 
 
 @api_bp.route("/gis/boundaries", methods=["GET"])
-@login_required
 def get_gis_boundaries():
     """Retrieve authentic district and state administrative boundaries as GeoJSON."""
     try:
