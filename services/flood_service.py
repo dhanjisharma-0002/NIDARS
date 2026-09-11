@@ -72,11 +72,14 @@ def predict_from_payload(payload, persist=True):
     except Exception:
         current_app.logger.exception("Failed to generate flood prediction explainability")
 
+    pred_id = None
     if persist:
-        _store_history(cleaned, prediction, explainability)
+        pred_id = _store_history(cleaned, prediction, explainability)
 
     return {
         "success": True,
+        "prediction_id": pred_id,
+        "id": pred_id,
         "prediction": prediction,
         "explainability": explainability,
         "model_status": status,
@@ -109,6 +112,8 @@ def _store_history(cleaned, prediction, explainability=None):
     try:
         db.session.add(record)
         db.session.commit()
+        return record.id
     except Exception:
         db.session.rollback()
         current_app.logger.exception("Failed to store flood prediction history")
+        return None

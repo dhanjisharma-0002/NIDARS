@@ -442,14 +442,10 @@
             })
             .then(function (data) {
                 cachedPredictions = data.predictions || [];
-                if (cachedPredictions.length > 0) {
-                    renderPredictionsTable(cachedPredictions);
-                } else {
-                    populateDefaultTable();
-                }
+                renderPredictionsTable(cachedPredictions);
             })
             .catch(function () {
-                populateDefaultTable();
+                renderPredictionsTable([]);
             });
     }
 
@@ -458,7 +454,7 @@
         if (!tbody) return;
 
         if (!predictions || predictions.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-3">No matching prediction records found.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-4"><span class="fs-5 d-block mb-1">📋</span>No recent hazard inquiries logged yet. Run <a href="/flood-prediction" class="text-info fw-semibold text-decoration-none">🌊 Flood Assessment</a> or <a href="/landslide" class="text-warning fw-semibold text-decoration-none">⛰️ Landslide Assessment</a> to generate prediction records.</td></tr>';
             return;
         }
 
@@ -528,30 +524,6 @@
 
             renderPredictionsTable(filtered);
         });
-    }
-
-    function populateDefaultTable() {
-        cachedPredictions = [
-            {
-                id: 1,
-                prediction_type: "flood",
-                hazard_type: "flood",
-                risk_level: "MODERATE",
-                probability: 0.428,
-                location_name: "Lucknow Inundation Sector (26.85°N, 80.95°E)",
-                created_at: new Date().toISOString()
-            },
-            {
-                id: 2,
-                prediction_type: "landslide",
-                hazard_type: "landslide",
-                risk_level: "HIGH",
-                probability: 0.684,
-                location_name: "Shimla Slope Corridor (31.10°N, 77.17°E)",
-                created_at: new Date().toISOString()
-            }
-        ];
-        renderPredictionsTable(cachedPredictions);
     }
 
     document.addEventListener("DOMContentLoaded", function () {

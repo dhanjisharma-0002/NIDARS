@@ -95,56 +95,6 @@ def recent_predictions():
             }
         )
 
-    # If no records in database yet, provide authentic representative North India inquiry records
-    if not items:
-        now_iso = datetime.now(timezone.utc).isoformat()
-        items = [
-            {
-                "id": 1,
-                "prediction_type": "flood",
-                "hazard_type": "flood",
-                "status": "completed",
-                "risk_level": "MODERATE",
-                "probability": 0.428,
-                "location_name": "Lucknow Inundation Sector (26.85°N, 80.95°E)",
-                "inputs": {
-                    "rainfall_24h": 48.0,
-                    "rainfall_72h": 95.0,
-                    "rainfall_7d": 140.0,
-                    "temperature": 27.5,
-                    "wind_speed": 11.0,
-                    "air_pressure": 1008.0,
-                    "elevation": 123.0,
-                    "latitude": 26.85,
-                    "longitude": 80.95,
-                },
-                "has_explainability": True,
-                "created_at": now_iso,
-            },
-            {
-                "id": 2,
-                "prediction_type": "landslide",
-                "hazard_type": "landslide",
-                "status": "completed",
-                "risk_level": "HIGH",
-                "probability": 0.684,
-                "location_name": "Shimla Slope Corridor (31.10°N, 77.17°E)",
-                "inputs": {
-                    "rainfall_24h": 72.0,
-                    "rainfall_72h": 145.0,
-                    "rainfall_7d": 210.0,
-                    "temperature": 16.0,
-                    "wind_speed": 18.5,
-                    "air_pressure": 985.0,
-                    "elevation": 2200.0,
-                    "latitude": 31.1048,
-                    "longitude": 77.1734,
-                },
-                "has_explainability": True,
-                "created_at": now_iso,
-            },
-        ]
-
     return jsonify({"success": True, "predictions": items})
 
 
@@ -157,80 +107,49 @@ def explain_saved_prediction(prediction_id):
     except Exception:
         db.session.rollback()
 
-    if record:
-        res = record.result_json if isinstance(record.result_json, dict) else {}
-        expl = res.get("explainability")
-        inputs = res.get("inputs")
-        hazard_type = record.prediction_type
-        risk_level = res.get("risk_level", "LOW")
-        probability = res.get(f"{hazard_type}_probability") or res.get("probability", 0.0)
+    if not record:
+        return jsonify({
+            "success": False,
+            "error": f"Prediction history record #{prediction_id} not found.",
+            "message": "Prediction record was not found.",
+        }), 404
 
-        if expl is None and inputs and isinstance(inputs, dict):
-            if hazard_type == "flood":
-                expl = get_flood_explainability(inputs)
-            elif hazard_type == "landslide":
-                expl = get_landslide_explainability(inputs)
-    else:
-        # Generate authentic model-derived explainability for demo/inquiry records
-        if prediction_id == 2:
-            hazard_type = "landslide"
-            inputs = {
-                "rainfall_24h": 72.0,
-                "rainfall_72h": 145.0,
-                "rainfall_7d": 210.0,
-                "temperature": 16.0,
-                "wind_speed": 18.5,
-                "air_pressure": 985.0,
-                "elevation": 2200.0,
-                "latitude": 31.1048,
-                "longitude": 77.1734,
-            }
-            expl = get_landslide_explainability(inputs)
-            risk_level = "HIGH"
-            probability = 0.684
-        else:
-            hazard_type = "flood"
-            inputs = {
-                "rainfall_24h": 48.0,
-                "rainfall_72h": 95.0,
-                "rainfall_7d": 140.0,
-                "temperature": 27.5,
-                "wind_speed": 11.0,
-                "air_pressure": 1008.0,
-                "elevation": 123.0,
-                "latitude": 26.85,
-                "longitude": 80.95,
-            }
+    res = record.result_json if isinstance(record.result_json, dict) else {}
+    expl = res.get("explainability")
+    inputs = res.get("inputs")
+    hazard_type = record.prediction_type
+    risk_level = res.get("risk_level", "LOW")
+    probability = res.get(f"{hazard_type}_probability") or res.get("probability", 0.0)
+
+    if expl is None and inputs and isinstance(inputs, dict):
+        if hazard_type == "flood":
             expl = get_flood_explainability(inputs)
-            risk_level = "MODERATE"
-            probability = 0.428
+        elif hazard_type == "landslide":
+            expl = get_landslide_explainability(inputs)
 
     if expl is None:
-        return jsonify(
-            {
-                "success": False,
-                "errors": ["Explainability could not be generated for this record."],
-            }
-        ), 404
+        return jsonify({
+            "success": False,
+            "error": "Explainability could not be generated for this record.",
+            "message": "Explainability calculation failed.",
+        }), 500
 
-    return jsonify(
-        {
-            "success": True,
-            "prediction_id": prediction_id,
-            "prediction": {
-                "id": prediction_id,
-                "hazard_type": hazard_type,
-                "prediction_type": hazard_type,
-                "risk_level": risk_level,
-                "probability": probability,
-                "inputs": inputs,
-            },
-            "prediction_type": hazard_type,
+    return jsonify({
+        "success": True,
+        "prediction_id": record.id,
+        "prediction": {
+            "id": record.id,
             "hazard_type": hazard_type,
+            "prediction_type": hazard_type,
             "risk_level": risk_level,
             "probability": probability,
             "inputs": inputs,
-            "explainability": expl,
-        }
-    )
+        },
+        "prediction_type": hazard_type,
+        "hazard_type": hazard_type,
+        "risk_level": risk_level,
+        "probability": probability,
+        "inputs": inputs,
+        "explainability": expl,
+    })
 
