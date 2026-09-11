@@ -75,15 +75,25 @@ def login():
 
     form = LoginForm()
     if form.validate_on_submit():
-        email = (form.email.data or "").strip().lower()
+        ident = (form.email.data or "").strip().lower()
         user = None
         try:
-            user = User.query.filter_by(email=email).first()
+            if "@" in ident:
+                user = User.query.filter(User.email == ident).first()
+            else:
+                user = User.query.filter(
+                    (User.email == ident) | (User.email == f"{ident}@nidars.gov.in")
+                ).first()
         except Exception:
             db.session.rollback()
             try:
                 db.create_all()
-                user = User.query.filter_by(email=email).first()
+                if "@" in ident:
+                    user = User.query.filter(User.email == ident).first()
+                else:
+                    user = User.query.filter(
+                        (User.email == ident) | (User.email == f"{ident}@nidars.gov.in")
+                    ).first()
             except Exception:
                 db.session.rollback()
                 current_app.logger.exception("Login lookup failed due to database error")

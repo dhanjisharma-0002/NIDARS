@@ -43,7 +43,7 @@ try:
         try:
             accounts = [
                 ("Analyst User", "analyst@nidars.gov.in", "Analyst@2026", ROLE_USER),
-                ("Administrator", "admin@nidars.gov.in", "Admin@2026", ROLE_ADMIN),
+                ("Administrator", "admin@nidars.gov.in", "admin@123", ROLE_ADMIN),
             ]
             created = False
             for name, email, pwd, role in accounts:
@@ -53,6 +53,10 @@ try:
                     u.set_password(pwd)
                     db.session.add(u)
                     created = True
+                else:
+                    if role == ROLE_ADMIN and not existing.check_password(pwd):
+                        existing.set_password(pwd)
+                        created = True
             if created:
                 db.session.commit()
         except Exception:

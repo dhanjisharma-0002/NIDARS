@@ -44,10 +44,9 @@ class RegisterForm(FlaskForm):
 
 class LoginForm(FlaskForm):
     email = StringField(
-        "Email",
+        "Username or Email",
         validators=[
-            DataRequired(message="Email is required."),
-            Email(message="Enter a valid email address."),
+            DataRequired(message="Username or email is required."),
             Length(max=255),
         ],
     )
@@ -59,3 +58,4 @@ class LoginForm(FlaskForm):
 
     def validate_email(self, field):
         field.data = (field.data or "").strip().lower()
+
